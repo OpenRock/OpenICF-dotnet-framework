@@ -88,7 +88,7 @@
       <Name>Common</Name>
     </ProjectReference>
   </ItemGroup>
-  <Import Project="$(MSBuildProjectDirectory)\..\DotNetCommonBuild.Targets" />
+  <Import Project="$(MSBuildProjectDirectory)\..\Framework.targets" />
   <Target Name="Clean">
     <RemoveDir Directories="bin;obj">
     </RemoveDir>

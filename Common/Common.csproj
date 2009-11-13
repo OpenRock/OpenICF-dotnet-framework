@@ -34,6 +34,7 @@
     <NoStdLib>False</NoStdLib>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <CopyOutput>true</CopyOutput>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <OutputPath>bin\Debug\</OutputPath>
@@ -58,7 +59,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <FileAlignment>4096</FileAlignment>
   </PropertyGroup>  
-  <Import Project="$(MSBuildProjectDirectory)\..\DotNetCommonBuild.Targets" />
+  <Import Project="$(MSBuildProjectDirectory)\..\Framework.targets" />
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core">

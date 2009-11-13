@@ -25,12 +25,6 @@
 	    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
 	</PropertyGroup>
 	<Target Name="BeforeBuild">
-		<!-- Make sure the Service and all its deps are built -->
-		<MSBuild Projects="..\Common\Common.csproj" />
-		<MSBuild Projects="..\Framework\Framework.csproj" />
-		<MSBuild Projects="..\TestCommon\TestCommon.csproj" />
-		<MSBuild Projects="..\FrameworkInternal\FrameworkInternal.csproj" />
-		<MSBuild Projects="..\Service\Service.csproj" />
 		<!-- write out the top of the file.. -->
 		<ReadLinesFromFile File="File.top" >
 			<Output TaskParameter="Lines" ItemName="FileTopLines"/>
@@ -58,7 +52,6 @@
 	</Target>
 
   <Target Name="Clean">
-		<MSBuild Projects="..\Service\Service.csproj" Targets="Clean" />
 		<RemoveDir Directories="obj;bin" />
 		<Delete Files="Files.wxs" />
 	</Target>

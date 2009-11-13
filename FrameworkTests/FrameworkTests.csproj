@@ -1,4 +1,4 @@
-﻿<!--
+<!--
   ====================
   DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
   
@@ -49,7 +49,7 @@
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
     <DefineConstants>TRACE</DefineConstants>
   </PropertyGroup>
-  <Import Project="$(MSBuildProjectDirectory)\..\DotNetCommonBuild.Targets" />
+  <Import Project="$(MSBuildProjectDirectory)\..\Framework.targets" />
   <ItemGroup>
     <Reference Include="nunit.framework" />
     <Reference Include="System" />
@@ -115,19 +115,20 @@
   </ItemGroup>
   <Target Name="BeforeBuild">
     <MakeDir Directories="$(OutputPath)" />
+    <!-- Building test bundles and script executor factories here because we do not want FrameworkTests to depend on them -->
     <!-- Build TestBundle V1 -->
-    <MSBuild Projects="..\TestBundleV1\TestBundleV1.csproj" />
-    <CreateItem Include="..\TestBundleV1\bin\$(Configuration)\TestBundleV1*.*">
+    <MSBuild Projects="..\TestBundles\TestBundleV1\TestBundleV1.csproj" />
+    <CreateItem Include="..\TestBundles\TestBundleV1\bin\$(Configuration)\TestBundleV1*.*">
       <Output TaskParameter="Include" ItemName="V1SourceFiles" />
     </CreateItem>
-    <CreateItem Include="..\TestBundleV1\bin\$(Configuration)\es*\**">
+    <CreateItem Include="..\TestBundles\TestBundleV1\bin\$(Configuration)\es*\**">
       <Output TaskParameter="Include" ItemName="V1LocaleESSourceFiles" />
     </CreateItem>
     <Copy SourceFiles="@(V1LocaleESSourceFiles)" DestinationFolder="bin\$(Configuration)\%(RecursiveDir)" />
     <Copy SourceFiles="@(V1SourceFiles)" DestinationFolder="bin\$(Configuration)" />
     <!-- Build TestBundle V2 -->
-    <MSBuild Projects="..\TestBundleV2\TestBundleV2.csproj" />
-    <CreateItem Include="..\TestBundleV2\bin\$(Configuration)\TestBundleV2*.*">
+    <MSBuild Projects="..\TestBundles\TestBundleV2\TestBundleV2.csproj" />
+    <CreateItem Include="..\TestBundles\TestBundleV2\bin\$(Configuration)\TestBundleV2*.*">
       <Output TaskParameter="Include" ItemName="V2SourceFiles" />
     </CreateItem>
     <Copy SourceFiles="@(V2SourceFiles)" DestinationFolder="bin\$(Configuration)" />
@@ -154,14 +155,6 @@
   <Target Name="Clean">
     <RemoveDir Directories="bin;obj">
     </RemoveDir>
-    <MSBuild Projects="..\TestBundleV1\TestBundleV1.csproj" Targets="Clean">
-    </MSBuild>
-    <MSBuild Projects="..\TestBundleV2\TestBundleV2.csproj" Targets="Clean">
-    </MSBuild>
-    <MSBuild Projects="..\BooScriptExecutorFactory\BooScriptExecutorFactory.csproj" Targets="Clean">
-    </MSBuild>
-    <MSBuild Projects="..\ShellScriptExecutorFactory\ShellScriptExecutorFactory.csproj" Targets="Clean">
-    </MSBuild>
   </Target>
   <ItemGroup>
     <EmbeddedResource Include="Org.IdentityConnectors.TestConnector.FakeConnector\config\config.xml" />

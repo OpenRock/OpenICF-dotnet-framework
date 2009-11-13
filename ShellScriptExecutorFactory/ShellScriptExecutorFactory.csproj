@@ -30,6 +30,7 @@
     <AssemblyName>Shell.ScriptExecutorFactory</AssemblyName>
     <ProductName>ShellScriptExecutorFactory</ProductName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <CopyOutput>true</CopyOutput>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <ErrorReport>prompt</ErrorReport>
@@ -54,7 +55,7 @@
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
     <DefineConstants>TRACE</DefineConstants>
   </PropertyGroup>
-  <Import Project="$(MSBuildProjectDirectory)\..\DotNetCommonBuild.Targets" />
+  <Import Project="$(MSBuildProjectDirectory)\..\Framework.targets" />
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Core">
