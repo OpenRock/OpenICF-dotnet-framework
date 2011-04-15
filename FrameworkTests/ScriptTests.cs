@@ -27,7 +27,6 @@ using Org.IdentityConnectors.Common;
 using Org.IdentityConnectors.Common.Script;
 using Org.IdentityConnectors.Framework.Common.Objects;
 using NUnit.Framework;
-using NUnit.Framework.SyntaxHelpers;
 
 namespace FrameworkTests
 {

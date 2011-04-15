@@ -22,7 +22,6 @@
  */
 using System;
 using NUnit.Framework;
-using NUnit.Framework.SyntaxHelpers;
 using Org.IdentityConnectors.Common;
 using Org.IdentityConnectors.Framework.Api.Operations;
 namespace FrameworkTests

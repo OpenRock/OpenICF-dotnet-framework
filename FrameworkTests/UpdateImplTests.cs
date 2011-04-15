@@ -23,7 +23,6 @@
 using System;
 using System.Security;
 using NUnit.Framework;
-using NUnit.Framework.SyntaxHelpers;
 using System.Collections.Generic;
 using Org.IdentityConnectors.Common;
 using Org.IdentityConnectors.Framework.Api;

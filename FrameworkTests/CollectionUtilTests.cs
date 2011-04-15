@@ -23,7 +23,6 @@
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using NUnit.Framework.SyntaxHelpers;
 using Org.IdentityConnectors.Common;
 namespace FrameworkTests
 {

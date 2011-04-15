@@ -22,7 +22,6 @@
  */
 using System;
 using NUnit.Framework;
-using NUnit.Framework.SyntaxHelpers;
 using Org.IdentityConnectors.Framework.Common.Objects;
 using Org.IdentityConnectors.Framework.Common.Objects.Filters;
 using Org.IdentityConnectors.Framework.Common.Serializer;

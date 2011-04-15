@@ -22,7 +22,6 @@
  */
 using System;
 using NUnit.Framework;
-using NUnit.Framework.SyntaxHelpers;
 using System.Reflection;
 using System.Reflection.Emit;
 using Org.IdentityConnectors.Common.Proxy;

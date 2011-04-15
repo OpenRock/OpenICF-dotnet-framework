@@ -27,7 +27,6 @@ using System.Text;
 using Org.IdentityConnectors.Common.Security;
 using Org.IdentityConnectors.Framework.Common.Serializer;
 using NUnit.Framework;
-using NUnit.Framework.SyntaxHelpers;
 
 namespace FrameworkTests
 {

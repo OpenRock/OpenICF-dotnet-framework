@@ -22,7 +22,6 @@
  */
 using System;
 using NUnit.Framework;
-using NUnit.Framework.SyntaxHelpers;
 using System.Globalization;
 using System.Collections.Generic;
 using Org.IdentityConnectors.Common;
