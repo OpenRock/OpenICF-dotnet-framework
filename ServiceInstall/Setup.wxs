@@ -5,7 +5,7 @@
 		Language="1033"
 		Version="!(bind.FileVersion.Framework.dll)"
 		UpgradeCode="2C19FE30-F6A7-482D-A50F-C1E64D34C024"
-		Manufacturer="Oracle">
+		Manufacturer="ForgeRock">
 		<Package Description="Version: !(bind.FileVersion.Framework.dll)"
 			Comments="Connector Server Installer"
 			InstallerVersion="200"
@@ -98,8 +98,7 @@
                 <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
                 <Control Id="Description" Type="Text" X="135" Y="80" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="!(loc.WelcomeDlgDescription)" />
                 <Control Id="SeparationLine" Type="Line" X="135" Y="140" Width="220" Height="0" />
-                <Control Id="Copyright" Type="Text" X="135" Y="150" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="Copyright (c) 2010 Oracle and/or its affiliates. All rights reserved." />
-                <Control Id="Trademark" Type="Text" X="135" Y="180" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="Oracle is a registered trademark of Oracle Corporation and/or its affiliates. Other names may be trademarks of their respective owners." />
+                <Control Id="Copyright" Type="Text" X="135" Y="150" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="Copyright (c) 2011 ForgeRock AS. All rights reserved." />
                 <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="!(loc.WelcomeDlgTitle)" />
             </Dialog>
             <InstallUISequence>
