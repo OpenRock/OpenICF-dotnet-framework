@@ -5006,7 +5006,6 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
         {
             Assertions.NullCheck(token, "token");
             Assertions.NullCheck(deltaType, "deltaType");
-            Assertions.NullCheck(objectClass, "objectClass");
             Assertions.NullCheck(uid, "uid");
 
             //do not allow previous Uid for anything else than create or update
