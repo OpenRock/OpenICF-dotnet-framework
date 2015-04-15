@@ -121,14 +121,8 @@ namespace Org.IdentityConnectors.Framework.Impl.Test
                     rawConnectorClass.Name)); ;
                 APIConfigurationImpl impl = LocalConnectorInfoManagerImpl.CreateDefaultAPIConfiguration(rv);
                 rv.DefaultAPIConfiguration = impl;
-                if (false)
-                {
-                    rv.Messages = CreateDummyMessages();
-                }
-                else
-                {
-                    rv.Messages = LocalConnectorInfoManagerImpl.LoadMessages(assembly, rv, attribute.MessageCatalogPaths);
-                }
+                rv.Messages = LocalConnectorInfoManagerImpl.LoadMessages(assembly, rv, attribute.MessageCatalogPaths);
+              
                 ConfigurationPropertiesImpl configProps = (ConfigurationPropertiesImpl)impl.ConfigurationProperties;
 
                 string fullPrefix = StringUtil.IsBlank(prefix) ? null : prefix + ".";

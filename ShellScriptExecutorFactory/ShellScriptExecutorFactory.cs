@@ -192,7 +192,7 @@ namespace Org.IdentityConnectors.Common.Script.Shell
                 {
                     File.Delete(fn);
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
 
                 }

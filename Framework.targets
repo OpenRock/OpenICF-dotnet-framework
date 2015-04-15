@@ -24,7 +24,7 @@
     <PropertyGroup>                
         <VersionFileIn>$(MSBuildProjectDirectory)\version.template</VersionFileIn>
         <VersionFileOut>$(MSBuildProjectDirectory)\version.txt</VersionFileOut>
-        <Company>ForgeRock AS</Company>
+        <Company>ForgeRock</Company>
         <Copyright>Copyright 2008-2009 Sun Microsystems, Inc. All rights reserved.</Copyright>
         <FrameworkDistDir>$(MSBuildProjectDirectory)\..\Dist</FrameworkDistDir>
         <!--FrameworkRootDir>$(MSBuildProjectDirectory)\..\..\</FrameworkRootDir-->
@@ -52,11 +52,11 @@
         <AssemblyInfo CodeLanguage="CS"  
             OutputFile="AssemblyInfo.cs"
             AssemblyTitle="$(ProductName)"
-            AssemblyProduct="$(ProductName)"
+            AssemblyProduct="OpenICF"
             AssemblyCopyright="$(Copyright)"
             AssemblyCompany="$(Company)"             
             AssemblyVersion="$(Major).$(Minor).$(Build).$(Revision)" 
-            AssemblyFileVersion="$(Major).$(Minor).$(Build).$(Revision) Revision:$(SVNRevision)"
+            AssemblyFileVersion="$(Major).$(Minor).$(Build).$(Revision) Revision $(SVNRevision)"
             InternalsVisibleTo="$(InternalsVisibleTo)" />
     </Target>
     
