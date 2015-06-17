@@ -19,6 +19,7 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
+ * Portions Copyrighted 2015 ForgeRock AS.
  */
 using System;
 using System.Runtime.CompilerServices;
@@ -335,11 +336,31 @@ namespace Org.IdentityConnectors.Common
         /// <param name="collection2">The second collection</param>
         /// <returns></returns>
         public static bool SetsEqual<T>(ICollection<T> collection1,
-                                        ICollection<T> collection2)
+            ICollection<T> collection2)
         {
-            if (collection1 == null || collection1 == null)
+            return SetsEqual(collection1, collection2, false);
+        }
+
+        private static bool _SetsEqual<T>(ICollection<T> collection1,
+            ICollection<T> collection2, Boolean equalsIgnoreCase)
+        {
+            return SetsEqual(collection1, collection2, equalsIgnoreCase); 
+        }
+
+        /// <summary>
+        /// Returns true if the two sets contain the same elements. This is only for
+        /// sets and dictionaries. Does not work for Lists or Arrays.
+        /// </summary>
+        /// <param name="collection1">The first collection</param>
+        /// <param name="collection2">The second collection</param>
+        /// <param name="equalsIgnoreCase"></param>
+        /// <returns></returns>
+        public static bool SetsEqual<T>(ICollection<T> collection1,
+                                        ICollection<T> collection2, Boolean equalsIgnoreCase)
+        {
+            if (collection1 == null || collection2 == null)
             {
-                return collection1 == null && collection1 == null;
+                return collection1 == null && collection2== null;
             }
             if (collection1.Count != collection2.Count)
             {
@@ -688,11 +709,11 @@ namespace Org.IdentityConnectors.Common
         /// <summary>
         /// Returns a modifiable set, after first copying the array.
         /// </summary>
-        /// <param name="collection">An array maybe null.</param>
+        /// <param name="items">An array maybe null.</param>
         /// <returns>a modifiable set, after first copying the array.</returns>
         public static ICollection<T> NewSet<T>(params T[] items)
         {
-            return NewSet<T>((IEnumerable<T>)items);
+            return NewSet((IEnumerable<T>)items);
         }
 
         /// <summary>
@@ -700,14 +721,14 @@ namespace Org.IdentityConnectors.Common
         /// </summary>
         /// <param name="collection">A collection. May be null.</param>
         /// <returns>a modifiable set, after first copying the collection.</returns>
-        public static ICollection<U> NewSet<T, U>(IEnumerable<T> collection)
+        public static ICollection<TU> NewSet<T, TU>(IEnumerable<T> collection)
         {
-            ICollection<U> rv = new HashSet<U>();
+            ICollection<TU> rv = new HashSet<TU>();
             if (collection != null)
             {
                 foreach (T element in collection)
                 {
-                    rv.Add((U)(object)element);
+                    rv.Add((TU)(object)element);
                 }
             }
             return rv;
@@ -830,23 +851,35 @@ namespace Org.IdentityConnectors.Common
             return new ReadOnlyCollection<U>(list);
         }
 
-        public static bool DictionariesEqual<K, V>(IDictionary<K, V> m1,
-                                                  IDictionary<K, V> m2)
+        public static bool DictionariesEqual<TK, TV>(IDictionary<TK, TV> m1,
+            IDictionary<TK, TV> m2)
+        {
+            return DictionariesEqual(m1, m2, false);
+        }
+
+        private static bool _DictionariesEqual<TK, TV>(IDictionary<TK, TV> m1,
+            IDictionary<TK, TV> m2, Boolean equalsIgnoreCase)
+        {
+            return DictionariesEqual(m1, m2, equalsIgnoreCase);
+        }
+
+        public static bool DictionariesEqual<TK, TV>(IDictionary<TK, TV> m1,
+                                                  IDictionary<TK, TV> m2, Boolean equalsIgnoreCase)
         {
             if (m1.Count != m2.Count)
             {
                 return false;
             }
-            foreach (KeyValuePair<K, V> entry1 in m1)
+            foreach (KeyValuePair<TK, TV> entry1 in m1)
             {
-                K key1 = entry1.Key;
-                V val1 = entry1.Value;
+                TK key1 = entry1.Key;
+                TV val1 = entry1.Value;
                 if (!m2.ContainsKey(key1))
                 {
                     return false;
                 }
                 Object val2 = m2[key1];
-                if (!CollectionUtil.Equals(val1, val2))
+                if (!CollectionUtil.Equals(val1, val2, equalsIgnoreCase))
                 {
                     return false;
                 }
@@ -855,7 +888,19 @@ namespace Org.IdentityConnectors.Common
         }
 
         public static bool ListsEqual<T>(IList<T> v1,
-                                         IList<T> v2)
+            IList<T> v2)
+        {
+            return ListsEqual(v1, v2, false);
+        }
+
+        private static bool _ListsEqual<T>(IList<T> v1,
+            IList<T> v2, Boolean equalsIgnoreCase)
+        {
+            return ListsEqual(v1, v2, equalsIgnoreCase);
+        }
+
+        public static bool ListsEqual<T>(IList<T> v1,
+                                         IList<T> v2, Boolean equalsIgnoreCase)
         {
             if (v1.Count != v2.Count)
             {
@@ -869,6 +914,18 @@ namespace Org.IdentityConnectors.Common
                 }
             }
             return true;
+        }
+
+        /// <summary>
+        /// Forces the compare of two comparable objects and removes any warnings
+        /// generated by the compiler.
+        /// </summary>
+        /// <returns> <seealso cref="T:IComparable"/> the integer value of o1.compareTo(o2). </returns>
+        public static int ForceCompare<T>(object o1, object o2)
+        {
+            IComparable<T> t1 = (IComparable<T>)o1;
+            T t2 = (T)o2;
+            return t1.CompareTo(t2);
         }
 
         /// <summary>
@@ -893,7 +950,7 @@ namespace Org.IdentityConnectors.Common
                     Object el = array.GetValue(i);
                     unchecked
                     {
-                        rv += CollectionUtil.GetHashCode(el);
+                        rv += GetHashCode(el);
                     }
                 }
                 return rv;
@@ -956,6 +1013,33 @@ namespace Org.IdentityConnectors.Common
         /// <returns>true if the two objects are equal.</returns>
         public new static bool Equals(Object o1, Object o2)
         {
+            return Equals(o1, o2, false);
+        }
+
+
+        /// <summary>
+        /// Equality function that properly handles arrays,
+        /// lists, maps, lists of arrays, and maps of arrays.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// NOTE: For Sets, this relies on the equals method
+        /// of the Set to do the right thing. This is a reasonable
+        /// assumption since, in order for Sets to behave
+        /// properly as Sets, their values must already have
+        /// a proper implementation of equals. (Or they must
+        /// be specialized Sets that define a custom comparator that
+        /// knows how to do the right thing). The same holds true for Map keys.
+        /// Map values, on the other hand, are compared (so Map values
+        /// can be arrays).
+        /// </para>
+        /// </remarks>
+        /// <param name="o1">The first object. May be null.</param>
+        /// <param name="o2">The second object. May be null.</param>
+        /// <param name="equalsIgnoreCase">If true the String and Character comparison is case-ignore</param>
+        /// <returns>true if the two objects are equal.</returns>
+        public static bool Equals(Object o1, Object o2, Boolean equalsIgnoreCase)
+        {
             if (o1 == o2)
             { //same object or both null
                 return true;
@@ -988,7 +1072,7 @@ namespace Org.IdentityConnectors.Common
                 {
                     Object el1 = array1.GetValue(i);
                     Object el2 = array2.GetValue(i);
-                    if (!CollectionUtil.Equals(el1, el2))
+                    if (!Equals(el1, el2, equalsIgnoreCase))
                     {
                         return false;
                     }
@@ -1008,11 +1092,11 @@ namespace Org.IdentityConnectors.Common
 
 
                 Type collectionUtil = typeof(CollectionUtil);
-                MethodInfo info = collectionUtil.GetMethod("ListsEqual");
+                MethodInfo info = collectionUtil.GetMethod("_ListsEqual", BindingFlags.Static | BindingFlags.NonPublic);
 
                 info = info.MakeGenericMethod(genericArguments);
 
-                Object rv = info.Invoke(null, new object[] { o1, o2 });
+                Object rv = info.Invoke(null, new object[] { o1, o2, equalsIgnoreCase });
                 return (bool)rv;
             }
             else if (ReflectionUtil.IsParentTypeOf(typeof(IDictionary<,>), o1.GetType()))
@@ -1028,11 +1112,11 @@ namespace Org.IdentityConnectors.Common
 
 
                 Type collectionUtil = typeof(CollectionUtil);
-                MethodInfo info = collectionUtil.GetMethod("DictionariesEqual");
+                MethodInfo info = collectionUtil.GetMethod("_DictionariesEqual", BindingFlags.Static | BindingFlags.NonPublic);
 
                 info = info.MakeGenericMethod(genericArguments);
 
-                Object rv = info.Invoke(null, new object[] { o1, o2 });
+                Object rv = info.Invoke(null, new object[] { o1, o2 , equalsIgnoreCase});
                 return (bool)rv;
             }
             else if (ReflectionUtil.IsParentTypeOf(typeof(ICollection<>), o1.GetType()))
@@ -1048,12 +1132,20 @@ namespace Org.IdentityConnectors.Common
 
 
                 Type collectionUtil = typeof(CollectionUtil);
-                MethodInfo info = collectionUtil.GetMethod("SetsEqual");
+                MethodInfo info = collectionUtil.GetMethod("_SetsEqual", BindingFlags.Static | BindingFlags.NonPublic);
 
                 info = info.MakeGenericMethod(genericArguments);
 
-                Object rv = info.Invoke(null, new object[] { o1, o2 });
+                Object rv = info.Invoke(null, new object[] { o1, o2, equalsIgnoreCase });
                 return (bool)rv;
+            }
+            else if (equalsIgnoreCase && o1 is string && o2 is string)
+            {
+                return ((string)o1).Equals((string)o2, StringComparison.CurrentCultureIgnoreCase);
+            }
+            else if (equalsIgnoreCase && o1 is char && o2 is char)
+            {
+                return char.ToLower((char)o1) == char.ToLower((char)o2);
             }
             else
             {

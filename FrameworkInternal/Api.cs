@@ -37,6 +37,7 @@ using Org.IdentityConnectors.Common.Proxy;
 using Org.IdentityConnectors.Common.Security;
 using System.Linq;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Globalization;
 using System.Resources;
 using System.Reflection;
@@ -44,6 +45,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using Org.IdentityConnectors.Framework.Common.Exceptions;
+using ConfigurationProperty = Org.IdentityConnectors.Framework.Api.ConfigurationProperty;
 
 namespace Org.IdentityConnectors.Framework.Impl.Api
 {
@@ -54,6 +56,25 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
     public class ConfigurationPropertyImpl : ConfigurationProperty
     {
         private ICollection<SafeType<APIOperation>> _operations;
+
+        public ConfigurationPropertyImpl()
+        {
+        }
+
+        public ConfigurationPropertyImpl(ConfigurationPropertyImpl parent)
+        {
+            _operations = parent.Operations;
+            Parent = null;
+            Order = parent.Order;
+            Name = parent.Name;
+            HelpMessageKey = parent.HelpMessageKey;
+            DisplayMessageKey = parent.DisplayMessageKey;
+            Value = parent.Value;
+            GroupMessageKey = parent.GroupMessageKey;
+            ValueType = parent.ValueType;
+            IsConfidential = parent.IsConfidential;
+            IsRequired = parent.IsRequired;
+        }
 
         public ICollection<SafeType<APIOperation>> Operations
         {
@@ -360,6 +381,8 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
 
         public AbstractConnectorInfo ConnectorInfo { get; set; }
 
+        public IConfigurationPropertyChangeListener ChangeListener { get; set; }
+
         public int ProducerBufferSize { get; set; }
 
         // =======================================================================
@@ -374,22 +397,23 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
         {
             if (null != other._connectorPoolConfiguration)
             {
-                this.ConnectorPoolConfiguration = new ObjectPoolConfiguration(other._connectorPoolConfiguration);
+                ConnectorPoolConfiguration = new ObjectPoolConfiguration(other._connectorPoolConfiguration);
             }
             if (null != other._resultsHandlerConfiguration)
             {
-                this.ResultsHandlerConfiguration = new ResultsHandlerConfiguration(other._resultsHandlerConfiguration);
+                ResultsHandlerConfiguration = new ResultsHandlerConfiguration(other._resultsHandlerConfiguration);
             }
-            this.IsConnectorPoolingSupported = other.IsConnectorPoolingSupported;
+            IsConnectorPoolingSupported = other.IsConnectorPoolingSupported;
             ConfigurationPropertiesImpl prop = new ConfigurationPropertiesImpl();
             prop.Properties = ((ConfigurationPropertiesImpl)other.ConfigurationProperties).Properties;
             ConfigurationProperties = prop;
 
-            this.ProducerBufferSize = other.ProducerBufferSize;
-            this.TimeoutMap = new Dictionary<SafeType<APIOperation>, int>(other.TimeoutMap);
-            this.SupportedOperations = new HashSet<SafeType<APIOperation>>(other.SupportedOperations);
+            ProducerBufferSize = other.ProducerBufferSize;
+            TimeoutMap = new Dictionary<SafeType<APIOperation>, int>(other.TimeoutMap);
+            SupportedOperations = new HashSet<SafeType<APIOperation>>(other.SupportedOperations);
 
-            this.ConnectorInfo = other.ConnectorInfo;
+            ConnectorInfo = other.ConnectorInfo;
+            ChangeListener = other.ChangeListener;
         }
     }
     #endregion
@@ -656,13 +680,19 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
             _connectorFacadeKey = Convert.ToBase64String(bytes);
             _configuration = (APIConfigurationImpl)SerializerUtil.DeserializeBinaryObject(bytes);
             //parent ref not included in the clone
-            _configuration.ConnectorInfo = (configuration.ConnectorInfo);
+            _configuration.ConnectorInfo = configuration.ConnectorInfo;
+            _configuration.ChangeListener = configuration.ChangeListener; ;
+        }
+
+        public AbstractConnectorFacade(string configuration, AbstractConnectorInfo connectorInfo)
+            : this(configuration, connectorInfo, null)
+        {
         }
 
         /// <summary>
         /// Builds up the maps of supported operations and calls.
         /// </summary>
-        public AbstractConnectorFacade(string configuration, AbstractConnectorInfo connectorInfo)
+        public AbstractConnectorFacade(string configuration, AbstractConnectorInfo connectorInfo, IConfigurationPropertyChangeListener changeListener)
         {
             Assertions.NullCheck(configuration, "configuration");
             Assertions.NullCheck(connectorInfo, "connectorInfo");
@@ -670,6 +700,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
             _configuration = (APIConfigurationImpl)SerializerUtil.DeserializeBase64Object(configuration);
             // parent ref not included in the clone
             _configuration.ConnectorInfo = connectorInfo;
+            _configuration.ChangeListener = changeListener;
         }
 
         /// <summary>
@@ -717,30 +748,30 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
         // =======================================================================
         public Schema Schema()
         {
-            return ((SchemaApiOp)this.GetOperationCheckSupported(SafeType<APIOperation>.Get<SchemaApiOp>()))
+            return ((SchemaApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<SchemaApiOp>()))
                     .Schema();
         }
 
         public Uid Create(ObjectClass oclass, ICollection<ConnectorAttribute> attrs, OperationOptions options)
         {
-            return ((CreateApiOp)this.GetOperationCheckSupported(SafeType<APIOperation>.Get<CreateApiOp>())).Create(oclass, attrs, options);
+            return ((CreateApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<CreateApiOp>())).Create(oclass, attrs, options);
         }
 
         public void Delete(ObjectClass objClass, Uid uid, OperationOptions options)
         {
-            ((DeleteApiOp)this.GetOperationCheckSupported(SafeType<APIOperation>.Get<DeleteApiOp>()))
+            ((DeleteApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<DeleteApiOp>()))
                 .Delete(objClass, uid, options);
         }
 
         public SearchResult Search(ObjectClass objectClass, Filter filter, ResultsHandler handler, OperationOptions options)
         {
-            return ((SearchApiOp)this.GetOperationCheckSupported(SafeType<APIOperation>.Get<SearchApiOp>())).Search(
+            return ((SearchApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<SearchApiOp>())).Search(
                     objectClass, filter, handler, options);
         }
 
         public Uid Update(ObjectClass objclass, Uid uid, ICollection<ConnectorAttribute> attrs, OperationOptions options)
         {
-            return ((UpdateApiOp)this.GetOperationCheckSupported(SafeType<APIOperation>.Get<UpdateApiOp>()))
+            return ((UpdateApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<UpdateApiOp>()))
                     .Update(objclass, uid, attrs, options);
         }
 
@@ -750,7 +781,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
                 ICollection<ConnectorAttribute> attrs,
                 OperationOptions options)
         {
-            return ((UpdateApiOp)this.GetOperationCheckSupported(SafeType<APIOperation>.Get<UpdateApiOp>()))
+            return ((UpdateApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<UpdateApiOp>()))
                 .AddAttributeValues(objclass, uid, attrs, options);
         }
 
@@ -760,68 +791,77 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
                 ICollection<ConnectorAttribute> attrs,
                 OperationOptions options)
         {
-            return ((UpdateApiOp)this.GetOperationCheckSupported(SafeType<APIOperation>.Get<UpdateApiOp>()))
+            return ((UpdateApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<UpdateApiOp>()))
                 .RemoveAttributeValues(objclass, uid, attrs, options);
         }
 
         public Uid Authenticate(ObjectClass objectClass, String username, GuardedString password, OperationOptions options)
         {
-            return ((AuthenticationApiOp)this
-             .GetOperationCheckSupported(SafeType<APIOperation>.Get<AuthenticationApiOp>())).Authenticate(
+            return ((AuthenticationApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<AuthenticationApiOp>())).Authenticate(
                     objectClass, username, password, options);
         }
 
         public Uid ResolveUsername(ObjectClass objectClass, String username, OperationOptions options)
         {
-            return ((ResolveUsernameApiOp)this
-             .GetOperationCheckSupported(SafeType<APIOperation>.Get<ResolveUsernameApiOp>())).ResolveUsername(
+            return ((ResolveUsernameApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<ResolveUsernameApiOp>())).ResolveUsername(
                     objectClass, username, options);
         }
 
         public ConnectorObject GetObject(ObjectClass objClass, Uid uid, OperationOptions options)
         {
-            return ((GetApiOp)this.GetOperationCheckSupported(SafeType<APIOperation>.Get<GetApiOp>()))
+            return ((GetApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<GetApiOp>()))
                     .GetObject(objClass, uid, options);
         }
 
         public Object RunScriptOnConnector(ScriptContext request,
                 OperationOptions options)
         {
-            return ((ScriptOnConnectorApiOp)this
-                    .GetOperationCheckSupported(SafeType<APIOperation>.Get<ScriptOnConnectorApiOp>()))
+            return ((ScriptOnConnectorApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<ScriptOnConnectorApiOp>()))
                     .RunScriptOnConnector(request, options);
         }
 
         public Object RunScriptOnResource(ScriptContext request,
                 OperationOptions options)
         {
-            return ((ScriptOnResourceApiOp)this
-                    .GetOperationCheckSupported(SafeType<APIOperation>.Get<ScriptOnResourceApiOp>()))
+            return ((ScriptOnResourceApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<ScriptOnResourceApiOp>()))
                     .RunScriptOnResource(request, options);
         }
 
         public void Test()
         {
-            ((TestApiOp)this.GetOperationCheckSupported(SafeType<APIOperation>.Get<TestApiOp>())).Test();
+            ((TestApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<TestApiOp>())).Test();
         }
 
         public void Validate()
         {
-            ((ValidateApiOp)this.GetOperationCheckSupported(SafeType<APIOperation>.Get<ValidateApiOp>())).Validate();
+            ((ValidateApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<ValidateApiOp>())).Validate();
         }
 
         public SyncToken Sync(ObjectClass objectClass, SyncToken token,
                 SyncResultsHandler handler,
                 OperationOptions options)
         {
-            return ((SyncApiOp)this.GetOperationCheckSupported(SafeType<APIOperation>.Get<SyncApiOp>()))
+            return ((SyncApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<SyncApiOp>()))
             .Sync(objectClass, token, handler, options);
         }
 
         public SyncToken GetLatestSyncToken(ObjectClass objectClass)
         {
-            return ((SyncApiOp)this.GetOperationCheckSupported(SafeType<APIOperation>.Get<SyncApiOp>()))
+            return ((SyncApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<SyncApiOp>()))
             .GetLatestSyncToken(objectClass);
+        }
+
+        public ISubscription Subscribe(ObjectClass objectClass, Filter eventFilter, IObserver<ConnectorObject> handler,
+            OperationOptions operationOptions)
+        {
+            return ((IConnectorEventSubscriptionApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<IConnectorEventSubscriptionApiOp>()))
+             .Subscribe(objectClass, eventFilter, handler, operationOptions);
+        }
+
+        public ISubscription Subscribe(ObjectClass objectClass, SyncToken token, IObserver<SyncDelta> handler, OperationOptions operationOptions)
+        {
+            return ((ISyncEventSubscriptionApiOp)GetOperationCheckSupported(SafeType<APIOperation>.Get<ISyncEventSubscriptionApiOp>()))
+             .Subscribe(objectClass, token, handler, operationOptions);
         }
 
         private APIOperation GetOperationCheckSupported(SafeType<APIOperation> api)
@@ -961,7 +1001,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
         /// <summary>
         /// Cache of the various ConnectorFacades.
         /// </summary>
-        private static readonly ConcurrentDictionary<string, Pair<DateTime, ConnectorFacade>> CACHE = 
+        private static readonly ConcurrentDictionary<string, Pair<DateTime, ConnectorFacade>> CACHE =
             new ConcurrentDictionary<string, Pair<DateTime, ConnectorFacade>>();
 
         /// <summary>
@@ -1021,7 +1061,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
         public override void Dispose()
         {
             base.Dispose();
-            foreach (Pair<DateTime,ConnectorFacade> facade in CACHE.Values)
+            foreach (Pair<DateTime, ConnectorFacade> facade in CACHE.Values)
             {
                 LocalConnectorFacadeImpl tmp = facade.Second as LocalConnectorFacadeImpl;
                 if (tmp != null)
@@ -1043,7 +1083,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
         {
             if (unit == null)
             {
-                throw new System.NullReferenceException();
+                throw new NullReferenceException();
             }
             DateTime lastTime = DateTime.Now.Subtract(unit);
             foreach (KeyValuePair<string, Pair<DateTime, ConnectorFacade>> entry in CACHE)
@@ -1062,7 +1102,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
                                 {
                                     tmp.Dispose();
                                     Trace.TraceInformation("Disposed managed facade: {0}", entry.Value);
-                                }                               
+                                }
                             }
                             catch (Exception e)
                             {

@@ -19,7 +19,7 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2012-2014 ForgeRock AS.
+ * Portions Copyrighted 2012-2015 ForgeRock AS.
  */
 using System;
 using System.Collections;
@@ -287,6 +287,11 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Remote
 
         protected override APIOperation GetOperationImplementation(SafeType<APIOperation> api)
         {
+            if (api.RawType == typeof(IConnectorEventSubscriptionApiOp) || api.RawType == typeof(ISyncEventSubscriptionApiOp))
+            {
+                //Not supported remotely with legacy communication protocol 
+                return null;
+            }
             // add remote proxy
             InvocationHandler handler = new RemoteOperationInvocationHandler(
                 (RemoteConnectorInfoImpl)GetAPIConfiguration().ConnectorInfo, remoteConnectorFacadeKey, api);

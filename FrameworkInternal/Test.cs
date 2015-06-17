@@ -19,7 +19,7 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2014 ForgeRock AS.
+ * Portions Copyrighted 2014-2015 ForgeRock AS.
  */
 using System;
 using System.Collections.Generic;
@@ -119,9 +119,9 @@ namespace Org.IdentityConnectors.Framework.Impl.Test
                    new ConnectorKey(rawConnectorClass.Name + ".bundle",
                     "1.0",
                     rawConnectorClass.Name)); ;
-                APIConfigurationImpl impl = LocalConnectorInfoManagerImpl.CreateDefaultAPIConfiguration(rv);
+                APIConfigurationImpl impl = ConnectorAssemblyUtility.CreateDefaultApiConfiguration(rv);
                 rv.DefaultAPIConfiguration = impl;
-                rv.Messages = LocalConnectorInfoManagerImpl.LoadMessages(assembly, rv, attribute.MessageCatalogPaths);
+                rv.Messages = ConnectorAssemblyUtility.LoadMessages(assembly, rv, attribute.MessageCatalogPaths);
               
                 ConfigurationPropertiesImpl configProps = (ConfigurationPropertiesImpl)impl.ConfigurationProperties;
 

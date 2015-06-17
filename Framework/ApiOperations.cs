@@ -19,7 +19,7 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2012-2014 ForgeRock AS.
+ * Portions Copyrighted 2012-2015 ForgeRock AS.
  */
 using System;
 using System.Collections.Generic;
@@ -42,12 +42,23 @@ namespace Org.IdentityConnectors.Framework.Api.Operations
         /// <summary>
         /// Most basic authentication available.
         /// </summary>
+        /// <param name="objectClass"></param>
         /// <param name="username">string that represents the account or user id.</param>
         /// <param name="password">string that represents the password for the account or user.</param>
+        /// <param name="options"></param>
         /// <exception cref="Exception">iff the credentials do not pass authentication otherwise
         /// nothing.</exception>
         Uid Authenticate(ObjectClass objectClass, string username, GuardedString password, OperationOptions options);
     }
+
+    #region IConnectorEventSubscriptionApiOp
+    /// 
+    /// <remarks>since 1.5</remarks>
+    public interface IConnectorEventSubscriptionApiOp : APIOperation
+    {
+        ISubscription Subscribe(ObjectClass objectClass, Filter eventFilter, IObserver<ConnectorObject> handler, OperationOptions operationOptions);
+    }
+    #endregion
 
     public interface ResolveUsernameApiOp : APIOperation
     {
@@ -82,9 +93,10 @@ namespace Org.IdentityConnectors.Framework.Api.Operations
         /// ObjectClass attribute and that there are no duplicate name'd
         /// attributes.
         /// </summary>
+        /// <param name="objectClass"></param>
         /// <param name="attrs">ConnectorAttribtes to create the object.</param>
         /// <returns>Unique id for the created object.</returns>
-        Uid Create(ObjectClass oclass, ICollection<ConnectorAttribute> attrs, OperationOptions options);
+        Uid Create(ObjectClass objectClass, ICollection<ConnectorAttribute> attrs, OperationOptions options);
     }
 
     /// <summary>
@@ -98,7 +110,7 @@ namespace Org.IdentityConnectors.Framework.Api.Operations
         /// </summary>
         /// <param name="objectClass">The type of object to delete.</param>
         /// <param name="uid">The unique identitfier for the object to delete.</param>
-        /// <exception cref="">Throws UnknowUid if the object does not exist.</exception>
+        /// <exception cref="UnknownUidException">Throws UnknowUid if the object does not exist.</exception>
         void Delete(ObjectClass objectClass, Uid uid, OperationOptions options);
     }
 
@@ -332,6 +344,25 @@ namespace Org.IdentityConnectors.Framework.Api.Operations
         /// <returns> A token if synchronization events exist; otherwise {@code null}. </returns>
         SyncToken GetLatestSyncToken(ObjectClass objectClass);
     }
+
+    #region ISyncEventSubscriptionApiOp
+    /// 
+    /// <remarks>since 1.5</remarks>
+    public interface ISyncEventSubscriptionApiOp : APIOperation
+    {
+        /// <summary>
+        /// Create a subscription to a given sync topic.
+        /// </summary>
+        /// <param name="objectClass"> </param>
+        /// <param name="token"></param>
+        /// <param name="handler"> </param>
+        /// <param name="operationOptions">
+        /// @return </param>
+        /// <exception cref="Exception">
+        ///             when the operation failed to create subscription. </exception>
+        ISubscription Subscribe(ObjectClass objectClass, SyncToken token, IObserver<SyncDelta> handler, OperationOptions operationOptions);
+    }
+    #endregion
 
     /// <summary>
     /// Updates a <see cref="ConnectorObject" />.

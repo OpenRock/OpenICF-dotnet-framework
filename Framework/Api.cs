@@ -19,7 +19,7 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2012-2014 ForgeRock AS.
+ * Portions Copyrighted 2012-2015 ForgeRock AS.
  */
 using System;
 using System.Collections.Generic;
@@ -31,6 +31,8 @@ using Org.IdentityConnectors.Common.Security;
 using Org.IdentityConnectors.Framework.Api.Operations;
 using Org.IdentityConnectors.Framework.Common;
 using Org.IdentityConnectors.Framework.Common.Objects;
+using Org.IdentityConnectors.Framework.Spi;
+using Org.IdentityConnectors.Framework.Spi.Operations;
 
 namespace Org.IdentityConnectors.Framework.Api
 {
@@ -57,6 +59,19 @@ namespace Org.IdentityConnectors.Framework.Api
         /// Caller can then modify the properties as needed.
         /// </summary>
         ConfigurationProperties ConfigurationProperties { get; }
+
+        /// <summary>
+        /// Add a configuration change listener callback handler.
+        /// 
+        /// This callback handler will be notified when connector push an event back
+        /// to application to notify the initial configuration has to be changed
+        /// before next time creating a new Connectorfacade in order to continue
+        /// operate properly.
+        /// </summary>
+        /// <param name="ChangeListener">
+        ///            the callback handler to receive the change event. </param>
+        /// <returns> a closeable to unregister the change listener. </returns>
+        IConfigurationPropertyChangeListener ChangeListener { set; }
 
         /// <summary>
         /// Determines if this <seealso cref="Connector"/> uses the framework's connector
@@ -107,7 +122,7 @@ namespace Org.IdentityConnectors.Framework.Api
 
         /// <summary>
         /// Sets the size of the buffer for <seealso cref="Connector"/> the support
-        /// <seealso cref="SearchOp"/> and what the results of the producer buffered.
+        /// <seealso cref="SearchOp{T}"/> and what the results of the producer buffered.
         /// </summary>
         /// <param name="size">
         ///            default is 100, if size is set to zero or less will disable
@@ -222,17 +237,38 @@ namespace Org.IdentityConnectors.Framework.Api
     }
     #endregion
 
+    #region IConfigurationPropertyChangeListener
+    /// <summary>
+    /// A ConfigurationPropertyChangeListener receives the change of
+    /// ConfigurationProperty.
+    /// </summary>
+    /// <remarks>since 1.5</remarks>
+    public interface IConfigurationPropertyChangeListener
+    {
+
+        /// <summary>
+        /// Receives notification that an ConfigurationProperty has been changed to
+        /// connector.
+        /// </summary>
+        /// <param name="changes">
+        ///            containing the property name and value of the
+        ///            ConfigurationProperty that was changed. </param>
+        void ConfigurationPropertyChange(IList<ConfigurationProperty> changes);
+
+    }
+    #endregion
+
     #region ConnectorFacade
     /// <summary>
     /// Main interface through which an application invokes Connector operations.
     /// Represents at the API level a specific instance of a Connector that has been
     /// configured in a specific way.
     /// </summary>
-    /// <seealso cref= ConnectorFacadeFactory
-    public interface ConnectorFacade : CreateApiOp, DeleteApiOp,
+    /// <seealso cref="ConnectorFacadeFactory"/>
+    public interface ConnectorFacade : CreateApiOp, IConnectorEventSubscriptionApiOp, DeleteApiOp,
             SearchApiOp, UpdateApiOp, SchemaApiOp, AuthenticationApiOp, ResolveUsernameApiOp,
             GetApiOp, ValidateApiOp, TestApiOp, ScriptOnConnectorApiOp, ScriptOnResourceApiOp,
-            SyncApiOp
+            ISyncEventSubscriptionApiOp, SyncApiOp
     {
 
         /// <summary>

@@ -19,15 +19,16 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2014 ForgeRock AS.
+ * Portions Copyrighted 2014-2015 ForgeRock AS.
  */
 using System;
 using System.Linq;
 using System.Security;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Text;
-
+using System.Threading;
 using Org.IdentityConnectors.Common;
 using Org.IdentityConnectors.Common.Security;
 
@@ -629,7 +630,7 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
             return ret;
         }
         /// <summary>
-        /// Get the password expired attribute from a <see cref="Collection" /> of
+        /// Get the password expired attribute from a <see cref="Collection{T}" /> of
         /// <see cref="ConnectorAttribute" />s.
         /// </summary>
         /// <param name="attrs">set of attribute to find the expired password
@@ -2337,9 +2338,9 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
         /// Represents all collections that contains any object.
         /// <para>
         /// This constant allowed to use in operation
-        /// <seealso cref="org.identityconnectors.framework.spi.operations.SyncOp#getLatestSyncToken(ObjectClass)"/>
+        /// <seealso cref="SyncOp#getLatestSyncToken(ObjectClass)"/>
         /// and
-        /// <seealso cref="org.identityconnectors.framework.spi.operations.SyncOp#sync(ObjectClass, SyncToken, SyncResultsHandler, OperationOptions)"/>
+        /// <seealso cref="SyncOp#sync(ObjectClass, SyncToken, SyncResultsHandler, OperationOptions)"/>
         /// any other operation throws <seealso cref="UnsupportedOperationException"/>
         /// </para>
         /// </summary>
@@ -4976,6 +4977,96 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
     }
     #endregion
 
+    #region ISubscription
+    /// <summary>
+    /// A SubscriptionHandler represents a subscription to an asynchronous event
+    /// channel.
+    /// </summary>
+    /// <remarks>since 1.5</remarks>
+    public interface ISubscription : IDisposable
+    {
+        /// <summary>
+        /// Indicates whether this <code>Subscription</code> is currently unsubscribed.
+        /// </summary>
+        /// <returns> <code>true</code> if this <code>Subscription</code> is currently
+        ///         unsubscribed, <code>false</code> otherwise </returns>
+        bool Unsubscribed { get; }
+    }
+
+    public class CancellationSubscription : ISubscription
+    {
+        private readonly CancellationTokenSource _cts;
+
+        /// <summary>
+        /// Gets the <see cref="T:CancellationToken"/> used by this CancellationSubscription.
+        /// 
+        /// </summary>
+        public CancellationToken Token
+        {
+            get
+            {
+                return _cts.Token;
+            }
+        }
+
+        /// <summary>
+        /// Gets a value that indicates whether the object is disposed.
+        /// 
+        /// </summary>
+        public bool IsDisposed
+        {
+            get
+            {
+                return _cts.IsCancellationRequested;
+            }
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="T:CancellationSubscriptione"/> 
+        /// class that uses an existing <seealso cref="T:CancellationTokenSource"/>.
+        /// 
+        /// </summary>
+        /// <param name="cts"><seealso cref="T:CancellationTokenSource"/> used for cancellation.</param>
+        /// <exception cref="T:ArgumentNullException"><paramref name="cts"/> is null.</exception>
+        public CancellationSubscription(CancellationTokenSource cts)
+        {
+            if (cts == null)
+                throw new ArgumentNullException("cts");
+            _cts = cts;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="T:CancellationSubscription"/> class that uses a 
+        /// new <seealso cref="T:System.Threading.CancellationTokenSource"/>.
+        /// 
+        /// </summary>
+        public CancellationSubscription()
+            : this(new CancellationTokenSource())
+        {
+        }
+
+        /// <summary>
+        /// Cancels the underlying <seealso cref="T:CancellationTokenSource"/>.
+        /// 
+        /// </summary>
+        public void Dispose()
+        {
+            _cts.Cancel();
+        }
+
+        /// <summary>
+        /// Indicates whether this <code>Subscription</code> is currently unsubscribed.
+        /// </summary>
+        /// <returns> <code>true</code> if this <code>Subscription</code> is currently
+        ///         unsubscribed, <code>false</code> otherwise </returns>
+        public bool Unsubscribed
+        {
+            get { return IsDisposed; }
+        }
+    }
+
+    #endregion
+
     #region SyncDelta
     /// <summary>
     /// Represents a change to an object in a resource.
@@ -5597,7 +5688,7 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
         /// <p/>
         /// The revision number specifies a given version ot the
         /// <seealso cref="ConnectorObject object"/> identified by the
-        /// <seealso cref="org.identityconnectors.framework.common.objects.Uid#getUidValue()"/>
+        /// <seealso cref="Uid#getUidValue()"/>
         /// </summary>
         /// <returns> null if the connector does not support the MVCC and does not set
         ///         this value otherwise return the revision number of the object. </returns>

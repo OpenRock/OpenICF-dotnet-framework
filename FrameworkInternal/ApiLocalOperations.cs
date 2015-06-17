@@ -19,7 +19,7 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2014 ForgeRock AS.
+ * Portions Copyrighted 2014-2015 ForgeRock AS.
  */
 using System;
 
@@ -40,6 +40,7 @@ using System.Linq;
 using Org.IdentityConnectors.Framework.Api;
 using System.Text;
 using System.Diagnostics;
+using System.Threading;
 
 namespace Org.IdentityConnectors.Framework.Impl.Api.Local.Operations
 {
@@ -148,6 +149,8 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local.Operations
         /// </remarks>
         private readonly ConstructorInfo _runnerImplConstructor;
 
+        private readonly Func<ConnectorOperationalContext, Connector, APIOperationRunner> _runnerImplFunc;
+
         /// <summary>
         /// Create an APIOperationRunnerProxy
         /// </summary>
@@ -161,6 +164,13 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local.Operations
             _runnerImplConstructor = runnerImplConstructor;
         }
 
+        public ConnectorAPIOperationRunnerProxy(ConnectorOperationalContext context,
+                Func<ConnectorOperationalContext, Connector, APIOperationRunner> runnerImplConstructor)
+        {
+            _context = context;
+            _runnerImplFunc = runnerImplConstructor;
+        }
+        
         public Object Invoke(Object proxy, MethodInfo method, object[] args)
         {
             //do not proxy equals, hashCode, toString
@@ -187,12 +197,18 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local.Operations
                     // initialize the connector..
                     connector.Init(_context.GetConfiguration());
                 }
-                APIOperationRunner runner =
+                APIOperationRunner runner = null != _runnerImplFunc ? _runnerImplFunc(_context, connector) :
                     (APIOperationRunner)_runnerImplConstructor.Invoke(new object[]{
                                                       _context,
                                                       connector});
                 ret = method.Invoke(runner, args);
                 // call out to the operation..
+                if (ret is ISubscription)
+                {
+                    //Dispose later
+                    ret = new DeferredSubscriptionDisposer((ISubscription)ret, connector, pool);
+                    connector = null;
+                }
             }
             catch (TargetInvocationException e)
             {
@@ -205,48 +221,90 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local.Operations
                 // make sure dispose of the connector properly
                 if (connector != null)
                 {
-                    // determine if there was a pool..
-                    if (pool != null)
-                    {
-                        try
-                        {
-                            //try to return it to the pool even though an
-                            //exception may have happened that leaves it in
-                            //a bad state. The contract of checkAlive
-                            //is that it will tell you if the connector is
-                            //still valid and so we leave it up to the pool
-                            //and connector to work it out.
-                            pool.ReturnObject((PoolableConnector)connector);
-                        }
-                        catch (Exception e)
-                        {
-                            //don't let pool exceptions propagate or mask
-                            //other exceptions. do log it though.
-                            TraceUtil.TraceException(null, e);
-                        }
-                    }
-                    //not pooled - just dispose
-                    else
-                    {
-                        //dispose it not supposed to throw, but just in case,
-                        //catch the exception and log it so we know about it
-                        //but don't let the exception prevent additional
-                        //cleanup that needs to happen
-                        try
-                        {
-                            connector.Dispose();
-                        }
-                        catch (Exception e)
-                        {
-                            //log this though
-                            TraceUtil.TraceException(null, e);
-                        }
-                    }
+                    DisposeConnector(connector, pool);
                 }
             }
             return ret;
         }
+
+        internal static void DisposeConnector(Connector connector, ObjectPool<PoolableConnector> pool)
+        {
+            // determine if there was a pool..
+            if (pool != null)
+            {
+                try
+                {
+                    //try to return it to the pool even though an
+                    //exception may have happened that leaves it in
+                    //a bad state. The contract of checkAlive
+                    //is that it will tell you if the connector is
+                    //still valid and so we leave it up to the pool
+                    //and connector to work it out.
+                    pool.ReturnObject((PoolableConnector)connector);
+                }
+                catch (Exception e)
+                {
+                    //don't let pool exceptions propagate or mask
+                    //other exceptions. do log it though.
+                    TraceUtil.TraceException(null, e);
+                }
+            }
+            //not pooled - just dispose
+            else
+            {
+                //dispose it not supposed to throw, but just in case,
+                //catch the exception and log it so we know about it
+                //but don't let the exception prevent additional
+                //cleanup that needs to happen
+                try
+                {
+                    connector.Dispose();
+                }
+                catch (Exception e)
+                {
+                    //log this though
+                    TraceUtil.TraceException(null, e);
+                }
+            }
+        }
+        private sealed class DeferredSubscriptionDisposer : ISubscription
+        {
+            private readonly Connector _connector;
+            private readonly ObjectPool<PoolableConnector> _poolEntry;
+            private readonly ISubscription _subscription;
+            private Int32 _active = 1;
+            public DeferredSubscriptionDisposer(ISubscription subscription, Connector connector, ObjectPool<PoolableConnector> poolEntry)
+            {
+                _subscription = subscription;
+                _connector = connector;
+                _poolEntry = poolEntry;
+            }
+
+            public void Dispose()
+            {
+                try
+                {
+                    _subscription.Dispose();
+                }
+                finally
+                {
+                    if (Interlocked.CompareExchange(ref _active, 0, 1) == 1)
+                    {
+                        DisposeConnector(_connector, _poolEntry);
+                    }
+                }
+            }
+
+            public bool Unsubscribed
+            {
+                get
+                {
+                    return _subscription.Unsubscribed;
+                }
+            }
+        }
     }
+
     #endregion
 
     #region ConnectorOperationalContext
@@ -581,6 +639,152 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local.Operations
     }
     #endregion
 
+    #region SubscriptionImpl
+
+    public class ConnectorEventSubscriptionApiOpImp : SubscriptionImpl, IConnectorEventSubscriptionApiOp
+    {
+
+        /// <summary>
+        /// Creates the API operation so it can called multiple times.
+        /// </summary>
+        /// <param name="context"> </param>
+        /// <param name="connector"> </param>
+        /// <param name="referenceCounter"> </param>
+        public ConnectorEventSubscriptionApiOpImp(ConnectorOperationalContext context, Connector connector, LocalConnectorFacadeImpl.ReferenceCounter referenceCounter)
+            : base(context, connector, referenceCounter)
+        {
+        }
+
+        public ISubscription Subscribe(ObjectClass objectClass, Filter eventFilter, IObserver<ConnectorObject> handler, OperationOptions operationOptions)
+        {
+            IConnectorEventSubscriptionOp operation = ((IConnectorEventSubscriptionOp)GetConnector());
+            InternalObserver<ConnectorObject> observer = new InternalObserver<ConnectorObject>(handler, ReferenceCounter);
+            try
+            {
+                ReferenceCounter.Acquire();
+                return observer.Subscription(operation.Subscribe(objectClass, eventFilter, observer, operationOptions));
+            }
+            catch (Exception e)
+            {
+                observer.OnError(e);
+                throw;
+            }
+        }
+    }
+
+    public class SyncEventSubscriptionApiOpImpl : SubscriptionImpl, ISyncEventSubscriptionApiOp
+    {
+
+        /// <summary>
+        /// Creates the API operation so it can called multiple times.
+        /// </summary>
+        /// <param name="context"> </param>
+        /// <param name="connector"> </param>
+        /// <param name="referenceCounter"> </param>
+        public SyncEventSubscriptionApiOpImpl(ConnectorOperationalContext context, Connector connector, LocalConnectorFacadeImpl.ReferenceCounter referenceCounter)
+            : base(context, connector, referenceCounter)
+        {
+        }
+
+        public ISubscription Subscribe(ObjectClass objectClass, SyncToken token, IObserver<SyncDelta> handler, OperationOptions operationOptions)
+        {
+            ISyncEventSubscriptionOp operation = ((ISyncEventSubscriptionOp)GetConnector());
+            InternalObserver<SyncDelta> observer = new InternalObserver<SyncDelta>(handler, ReferenceCounter);
+            try
+            {
+                ReferenceCounter.Acquire();
+                return observer.Subscription(operation.Subscribe(objectClass, token, observer, operationOptions));
+            }
+            catch (Exception e)
+            {
+                observer.OnError(e);
+                throw;
+            }
+        }
+    }
+    public class SubscriptionImpl : ConnectorAPIOperationRunner
+    {
+
+        protected readonly LocalConnectorFacadeImpl.ReferenceCounter ReferenceCounter;
+
+        /// <summary>
+        /// Creates the API operation so it can called multiple times.
+        /// </summary>
+        /// <param name="context"> </param>
+        /// <param name="connector"> </param>
+        protected internal SubscriptionImpl(ConnectorOperationalContext context, Connector connector, LocalConnectorFacadeImpl.ReferenceCounter referenceCounter)
+            : base(context, connector)
+        {
+            ReferenceCounter = referenceCounter;
+        }
+
+
+        protected sealed class InternalObserver<T> : IObserver<T>
+        {
+            private readonly IObserver<T> _observer;
+            private readonly CancellationSubscription _subscribed = new CancellationSubscription();
+
+            public InternalObserver(IObserver<T> observer, LocalConnectorFacadeImpl.ReferenceCounter referenceCounter)
+            {
+                _observer = observer;
+                _subscribed.Token.Register(referenceCounter.Release);
+            }
+
+            public CancellationSubscription Subscription(ISubscription subscription)
+            {
+                Assertions.NullCheck(subscription, "subscription");
+                _subscribed.Token.Register(subscription.Dispose);
+                return _subscribed;
+            }
+
+            public void OnCompleted()
+            {
+                if (!_subscribed.Unsubscribed)
+                {
+                    try
+                    {
+                        _subscribed.Dispose();
+                    }
+                    finally
+                    {
+                        _observer.OnCompleted();
+                    }
+                }
+            }
+
+            public void OnError(Exception e)
+            {
+                if (!_subscribed.Unsubscribed)
+                {
+                    try
+                    {
+                        _subscribed.Dispose();
+                    }
+                    finally
+                    {
+                        _observer.OnError(e);
+                    }
+                }
+            }
+
+            public void OnNext(T connectorObject)
+            {
+                try
+                {
+                    if (!_subscribed.Unsubscribed)
+                    {
+                        _observer.OnNext(connectorObject);
+                    }
+                }
+                catch (Exception t)
+                {
+                    OnError(t);
+                }
+            }
+        }
+    }
+    #endregion
+
     #region SyncAttributesToGetResultsHandler
     public sealed class SyncAttributesToGetResultsHandler :
         AttributesToGetResultsHandler
@@ -898,7 +1102,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local.Operations
                 {
                     StatefulConfiguration config = (StatefulConfiguration)configuration;
                     configuration = null;
-                    config.Release();   
+                    config.Release();
                 }
                 catch (Exception e)
                 {
@@ -1615,6 +1819,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local.Operations
 
         public SyncToken GetLatestSyncToken(ObjectClass objectClass)
         {
+            Assertions.NullCheck(objectClass, "objectClass");
             return ((SyncOp)GetConnector()).GetLatestSyncToken(objectClass);
         }
     }

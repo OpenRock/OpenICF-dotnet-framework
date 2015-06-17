@@ -19,7 +19,7 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2012-2014 ForgeRock AS.
+ * Portions Copyrighted 2012-2015 ForgeRock AS.
  */
 using System;
 using Org.IdentityConnectors.Common;
@@ -147,10 +147,40 @@ namespace Org.IdentityConnectors.Framework.Spi
     #region AbstractConfiguration
     public abstract class AbstractConfiguration : Configuration
     {
+        public interface IConfigurationChangeCallback
+        {
+            void NotifyUpdate();
+        }
+
+        private IConfigurationChangeCallback _callback;
 
         public ConnectorMessages ConnectorMessages { get; set; }
 
         public abstract void Validate();
+       
+        public void AddChangeCallback(IConfigurationChangeCallback handler)
+        {
+            if (null != _callback)
+            {
+                throw new InvalidOperationException("Configuration change update handler has been set");
+            }
+            _callback = handler;
+        }
+
+        protected internal virtual void NotifyConfigurationUpdate()
+        {
+            if (null != _callback)
+            {
+                try
+                {
+                    _callback.NotifyUpdate();
+                }
+                catch (Exception)
+                {
+                    // Ignored
+                }
+            }
+        }
     }
     #endregion
 

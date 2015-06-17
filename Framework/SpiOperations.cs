@@ -19,7 +19,7 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2012 ForgeRock AS.
+ * Portions Copyrighted 2012-2015 ForgeRock AS.
  */
 using System;
 using System.Collections.Generic;
@@ -55,12 +55,24 @@ namespace Org.IdentityConnectors.Framework.Spi.Operations
         /// most common is <see cref="Org.IdentityConnectors.Framework.Common.Exceptions.InvalidPasswordException" />.
         /// </para>
         /// </remarks>
+        /// <param name="objectClass"></param>
         /// <param name="username">the name based credential for authentication.</param>
         /// <param name="password">the password based credential for authentication.</param>
         /// <exception cref="Exception">iff native authentication fails. If a native exception if
         /// available attempt to throw it.</exception>
         Uid Authenticate(ObjectClass objectClass, String username, GuardedString password, OperationOptions options);
     }
+
+    #region IConnectorEventSubscriptionOp
+    /// <summary>
+    /// A ConnectorEventSubscriptionOp.
+    /// </summary>
+    /// <remarks>since 1.5</remarks>
+    public interface IConnectorEventSubscriptionOp : SPIOperation
+    {
+        ISubscription Subscribe(ObjectClass objectClass, Filter eventFilter, IObserver<ConnectorObject> observer, OperationOptions operationOptions);
+    }
+    #endregion
 
     public interface ResolveUsernameOp : SPIOperation
     {
@@ -232,7 +244,7 @@ namespace Org.IdentityConnectors.Framework.Spi.Operations
         Object RunScriptOnResource(ScriptContext request,
                 OperationOptions options);
     }
-
+    #region SearchOp
     /// <summary>
     /// Implement this interface to allow the Connector to search for resource
     /// objects.
@@ -276,6 +288,20 @@ namespace Org.IdentityConnectors.Framework.Spi.Operations
         /// about this ever being null.</param>
         void ExecuteQuery(ObjectClass oclass, T query, ResultsHandler handler, OperationOptions options);
     }
+    #endregion
+
+    #region ISyncEventSubscriptionOp
+    /// <summary>
+    /// ASyncEventSubscriptionOp.
+    /// </summary>
+    /// <remarks>since 1.5</remarks>
+    public interface ISyncEventSubscriptionOp : SPIOperation
+    {
+        ISubscription Subscribe(ObjectClass objectClass, SyncToken token, IObserver<SyncDelta> asyncHandler, OperationOptions operationOptions);
+    }
+    #endregion
+
+    #region SyncOp
     /// <summary>
     /// Receive synchronization events from the resource.
     /// </summary>
@@ -307,6 +333,7 @@ namespace Org.IdentityConnectors.Framework.Spi.Operations
         /// <returns>The latest token or null if there is no sync data.</returns>
         SyncToken GetLatestSyncToken(ObjectClass objectClass);
     }
+    #endregion
 
     /// <summary>
     /// The developer of a Connector should implement either this interface or the
@@ -461,7 +488,7 @@ namespace Org.IdentityConnectors.Framework.Spi.Operations
 
     /// <summary>
     /// Tests the connector <see cref="Configuration"/>.
-    /// <para>
+    /// </summary><para>
     /// Unlike validation performed by <see cref="M:Configuration:Validate"/>, testing a configuration
     /// checks that any pieces of environment referred by the configuration are available.
     /// For example, the connector could make a physical connection to a host specified

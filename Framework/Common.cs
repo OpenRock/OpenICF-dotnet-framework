@@ -19,7 +19,7 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2014 ForgeRock AS.
+ * Portions Copyrighted 2014-2015 ForgeRock AS.
  */
 using System;
 using System.Collections;
@@ -28,12 +28,143 @@ using System.Text;
 using System.Collections.Generic;
 using Org.IdentityConnectors.Common;
 using Org.IdentityConnectors.Common.Security;
+using Org.IdentityConnectors.Framework.Api;
 using Org.IdentityConnectors.Framework.Spi;
 using Org.IdentityConnectors.Framework.Api.Operations;
 using Org.IdentityConnectors.Framework.Spi.Operations;
 using Org.IdentityConnectors.Framework.Common.Objects;
+using Org.IdentityConnectors.Framework.Common.Objects.Filters;
+
 namespace Org.IdentityConnectors.Framework.Common
 {
+    #region ConnectorKeyRange
+    /// <summary>
+    /// A ConnectorKeyRange identifies a range of ConnectorKeys.
+    /// 
+    /// The <seealso cref="Org.IdentityConnectors.Framework.Api.ConnectorKey"/> uniquely identifies one connector with exact
+    /// <seealso cref="Version"/> meanwhile this class has a
+    /// <seealso cref="Org.IdentityConnectors.Framework.Common.VersionRange"/> which can match multiple.
+    /// 
+    /// </summary>
+    /// <remarks>since 1.5</remarks>
+    public sealed class ConnectorKeyRange
+    {
+        private readonly string _bundleName;
+        private readonly VersionRange _bundleVersionRange;
+        private readonly string _connectorName;
+
+        public string BundleName
+        {
+            get
+            {
+                return _bundleName;
+            }
+        }
+
+        public VersionRange BundleVersionRange
+        {
+            get
+            {
+                return _bundleVersionRange;
+            }
+        }
+
+        public string ConnectorName
+        {
+            get
+            {
+                return _connectorName;
+            }
+        }
+
+        public bool IsInRange(ConnectorKey connectorKey)
+        {
+            return !_bundleVersionRange.Empty && _bundleName.Equals(connectorKey.BundleName) && _connectorName.Equals(connectorKey.ConnectorName) && _bundleVersionRange.IsInRange(Version.Parse(connectorKey.BundleVersion));
+        }
+
+        public ConnectorKey ExactConnectorKey
+        {
+            get
+            {
+                if (_bundleVersionRange.Exact)
+                {
+                    return new ConnectorKey(_bundleName, _bundleVersionRange.Floor.ToString(), _connectorName);
+                }
+                else
+                {
+                    throw new ArgumentException("BundleVersion is not exact version");
+                }
+            }
+        }
+
+        private ConnectorKeyRange(string bundleName, VersionRange bundleVersionRange, string connectorName)
+        {
+            _bundleName = bundleName;
+            _bundleVersionRange = bundleVersionRange;
+            _connectorName = connectorName;
+        }
+
+        public override bool Equals(object o)
+        {
+            if (this == o)
+            {
+                return true;
+            }
+            if (!(o is ConnectorKeyRange))
+            {
+                return false;
+            }
+
+            ConnectorKeyRange that = (ConnectorKeyRange)o;
+
+            return _bundleName.Equals(that._bundleName) && _bundleVersionRange.Equals(that._bundleVersionRange) && _connectorName.Equals(that._connectorName);
+        }
+
+        public override int GetHashCode()
+        {
+            int result = _bundleName.GetHashCode();
+            result = 31 * result + _bundleVersionRange.GetHashCode();
+            result = 31 * result + _connectorName.GetHashCode();
+            return result;
+        }
+
+        public static Builder NewBuilder()
+        {
+            return new Builder();
+        }
+
+        public class Builder
+        {
+            private string _bundleName;
+            private string _bundleVersion;
+            private string _connectorName;
+
+            public virtual Builder SetBundleName(string bundleName)
+            {
+                _bundleName = Assertions.BlankChecked(bundleName, "bundleName");
+                return this;
+            }
+
+            public virtual Builder SetBundleVersion(string bundleVersion)
+            {
+                _bundleVersion = Assertions.BlankChecked(bundleVersion, "bundleVersion");
+                return this;
+            }
+
+            public virtual Builder SetConnectorName(string connectorName)
+            {
+                _connectorName = Assertions.BlankChecked(connectorName, "connectorName");
+                return this;
+            }
+
+            public virtual ConnectorKeyRange Build()
+            {
+                return new ConnectorKeyRange(_bundleName, VersionRange.Parse(_bundleVersion), _connectorName);
+            }
+        }
+    }
+    #endregion
+
     #region FrameworkInternalBridge
     internal static class FrameworkInternalBridge
     {
@@ -100,6 +231,10 @@ namespace Org.IdentityConnectors.Framework.Common
                 SafeType<APIOperation>.Get<ScriptOnResourceApiOp>();
             temp[SafeType<SPIOperation>.Get<SyncOp>()] =
                 SafeType<APIOperation>.Get<SyncApiOp>();
+            temp[SafeType<SPIOperation>.Get<IConnectorEventSubscriptionOp>()] =
+                SafeType<APIOperation>.Get<IConnectorEventSubscriptionApiOp>();
+            temp[SafeType<SPIOperation>.Get<ISyncEventSubscriptionOp>()] =
+                SafeType<APIOperation>.Get<ISyncEventSubscriptionApiOp>();
             SPI_TO_API = CollectionUtil.NewReadOnlyDictionary(temp);
 
             CONFIG_SUPPORTED_TYPES = CollectionUtil.NewReadOnlySet<Type>
@@ -478,6 +613,39 @@ namespace Org.IdentityConnectors.Framework.Common
             {
                 CheckOperationOptionType(val.GetType());
             }
+        }
+
+        /// <summary>
+        /// Check if <seealso cref="SearchOp{T}"/>
+        /// was invoked from
+        /// <seealso cref="GetApiOp"/> or
+        /// <seealso cref="SearchApiOp"/>.
+        /// </summary>
+        /// <param name="filter">
+        ///            the query parameter of
+        ///            <seealso cref="SearchOp{T}#executeQuery(org.identityconnectors.framework.common.objects.ObjectClass, Object, org.identityconnectors.framework.common.objects.ResultsHandler, org.identityconnectors.framework.common.objects.OperationOptions)"/> </param>
+        /// <returns> {@code null} if invoked from
+        ///         <seealso cref="SearchApiOp"/>
+        ///         or <seealso cref="Uid"/> value if invoked
+        ///         <seealso cref="GetApiOp"/>
+        /// </returns>
+        /// <remarks>since 1.5</remarks>
+        public static Uid GetUidIfGetOperation(Filter filter)
+        {
+            Uid uidToGet = null;
+            var equalsFilter = filter as EqualsFilter;
+            if (equalsFilter != null)
+            {
+                if (equalsFilter.GetAttribute() is Uid)
+                {
+                    uidToGet = (Uid)equalsFilter.GetAttribute();
+                }
+                else if (equalsFilter.GetAttribute().@Is(Uid.NAME))
+                {
+                    uidToGet = new Uid(ConnectorAttributeUtil.GetStringValue(equalsFilter.GetAttribute()));
+                }
+            }
+            return uidToGet;
         }
 
         /// <summary>

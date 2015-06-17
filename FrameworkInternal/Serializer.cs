@@ -19,7 +19,7 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2012-2014 ForgeRock AS.
+ * Portions Copyrighted 2012-2015 ForgeRock AS.
  */
 using System;
 using System.IO;
@@ -1238,7 +1238,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Serializer
             public override void Serialize(Object obj, ObjectEncoder encoder)
             {
                 GuardedString str = (GuardedString)obj;
-                str.Access( new GuardedString.LambdaAccessor(
+                str.Access(new GuardedString.LambdaAccessor(
                      clearChars =>
                      {
                          UnmanagedArray<byte> clearBytes = null;
@@ -1713,8 +1713,11 @@ namespace Org.IdentityConnectors.Framework.Impl.Serializer
             "ScriptOnResourceApiOp"));
             MAPPINGS.Add(new ObjectTypeMapperImpl(typeof(SyncApiOp),
             "SyncApiOp"));
+            MAPPINGS.Add(new ObjectTypeMapperImpl(typeof(IConnectorEventSubscriptionApiOp),
+                "ConnectorEventSubscriptionApiOp"));
+            MAPPINGS.Add(new ObjectTypeMapperImpl(typeof(ISyncEventSubscriptionApiOp),
+                "SyncEventSubscriptionApiOp"));
         }
-
     }
     #endregion
 
@@ -2387,9 +2390,12 @@ namespace Org.IdentityConnectors.Framework.Impl.Serializer
             {
                 String val = decoder.ReadStringField("uid", null);
                 String revision = decoder.ReadStringField("revision", null);
-                if (null == revision) {
+                if (null == revision)
+                {
                     return new Uid(val);
-                } else {
+                }
+                else
+                {
                     return new Uid(val, revision);
                 }
             }
@@ -2962,7 +2968,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Serializer
                 encoder.WriteStringField("connectorFacadeKey",
                         val.ConnectorFacadeKey);
                 encoder.WriteObjectField("ConnectorKey",
-                        val.ConnectorKey, true);                
+                        val.ConnectorKey, true);
                 encoder.WriteObjectField("Arguments",
                         val.Arguments, true);
             }

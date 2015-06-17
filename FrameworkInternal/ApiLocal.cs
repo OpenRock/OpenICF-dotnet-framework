@@ -19,7 +19,7 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2012-2014 ForgeRock AS.
+ * Portions Copyrighted 2012-2015 ForgeRock AS.
  */
 using System;
 using System.Diagnostics;
@@ -41,6 +41,8 @@ using System.Resources;
 using System.Threading;
 using System.IO;
 using System.Linq;
+using Org.IdentityConnectors.Common.Proxy;
+
 namespace Org.IdentityConnectors.Framework.Impl.Api.Local
 {
     #region ConnectorPoolManager
@@ -281,7 +283,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
                 // use the options to set internal properties..
                 int order = 0;
                 String helpKey = "help_" + name;
-                String displKey = "display_" +name;
+                String displKey = "display_" + name;
                 string grpKey = "group_" + name;
                 bool confidential = false;
                 bool required = false;
@@ -494,8 +496,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
             {
                 Assembly lib =
                     Assembly.LoadFrom(file.ToString());
-                CollectionUtil.AddAll(_connectorInfo,
-                                      ProcessAssembly(lib));
+                CollectionUtil.AddAll(_connectorInfo, ConnectorAssemblyUtility.ProcessAssembly(lib));
             }
             // also handle connector DLL file names with a version 
             FileInfo[] versionedFiles = directory.GetFiles("*.Connector-*.dll");
@@ -503,12 +504,34 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
             {
                 Assembly lib =
                     Assembly.LoadFrom(versionedFile.ToString());
-                CollectionUtil.AddAll(_connectorInfo,
-                                      ProcessAssembly(lib));
+                CollectionUtil.AddAll(_connectorInfo, ConnectorAssemblyUtility.ProcessAssembly(lib));
             }
         }
 
-        private IList<ConnectorInfo> ProcessAssembly(Assembly assembly)
+        public ConnectorInfo FindConnectorInfo(ConnectorKey key)
+        {
+            foreach (ConnectorInfo info in _connectorInfo)
+            {
+                if (info.ConnectorKey.Equals(key))
+                {
+                    return info;
+                }
+            }
+            return null;
+        }
+
+        public IList<ConnectorInfo> ConnectorInfos
+        {
+            get
+            {
+                return CollectionUtil.AsReadOnlyList(_connectorInfo);
+            }
+        }
+    }
+
+    public static class ConnectorAssemblyUtility
+    {
+        public static IList<ConnectorInfo> ProcessAssembly(Assembly assembly)
         {
             IList<ConnectorInfo> rv = new List<ConnectorInfo>();
 
@@ -524,7 +547,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
                 {
                     var typeLoadException = e as ReflectionTypeLoadException;
                     var loaderExceptions = typeLoadException.LoaderExceptions;
-                    foreach (var item in loaderExceptions) 
+                    foreach (var item in loaderExceptions)
                     {
                         TraceUtil.TraceException(" - loader exception: " + item, item);
                     }
@@ -541,11 +564,10 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
                 {
                     ConnectorClassAttribute attribute =
                         (ConnectorClassAttribute)attributes[0];
-                    LocalConnectorInfoImpl info =
-                        CreateConnectorInfo(assembly, type, attribute);
+                    LocalConnectorInfoImpl info = CreateConnectorInfo(assembly, type, attribute);
                     UriBuilder uri = new UriBuilder(assembly.CodeBase);
                     Trace.TraceInformation("Add ConnectorInfo {0} to Local Connector Info Manager from {1}",
-                                info.ConnectorKey, Uri.UnescapeDataString(uri.Path));
+                        info.ConnectorKey, Uri.UnescapeDataString(uri.Path));
 
                     rv.Add(info);
                 }
@@ -553,16 +575,16 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
             return rv;
         }
 
-        private LocalConnectorInfoImpl CreateConnectorInfo(Assembly assembly,
-                                                           Type rawConnectorClass,
-                                                           ConnectorClassAttribute attribute)
+        public static LocalConnectorInfoImpl CreateConnectorInfo(Assembly assembly,
+            Type rawConnectorClass,
+            ConnectorClassAttribute attribute)
         {
             String fileName = assembly.Location;
             if (!typeof(Connector).IsAssignableFrom(rawConnectorClass))
             {
                 String MSG = ("File " + fileName +
-                               " declares a connector " + rawConnectorClass +
-                               " that does not implement Connector.");
+                              " declares a connector " + rawConnectorClass +
+                              " that does not implement Connector.");
                 throw new ConfigurationException(MSG);
             }
             SafeType<Connector> connectorClass =
@@ -571,8 +593,8 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
             if (connectorConfigurationClass == null)
             {
                 String MSG = ("File " + fileName +
-                             " contains a ConnectorInfo attribute " +
-                             "with no connector configuration class.");
+                              " contains a ConnectorInfo attribute " +
+                              "with no connector configuration class.");
                 throw new ConfigurationException(MSG);
             }
             String connectorDisplayNameKey =
@@ -586,21 +608,21 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
             }
             ConnectorKey key =
                 new ConnectorKey(assembly.GetName().Name,
-                                 assembly.GetName().Version.ToString(),
-                                 connectorClass.RawType.Namespace + "." + connectorClass.RawType.Name);
+                    assembly.GetName().Version.ToString(),
+                    connectorClass.RawType.Namespace + "." + connectorClass.RawType.Name);
             LocalConnectorInfoImpl rv = new LocalConnectorInfoImpl();
             rv.ConnectorClass = connectorClass;
             rv.ConnectorConfigurationClass = connectorConfigurationClass;
             rv.ConnectorDisplayNameKey = connectorDisplayNameKey;
             rv.ConnectorCategoryKey = attribute.ConnectorCategoryKey;
             rv.ConnectorKey = key;
-            rv.DefaultAPIConfiguration = CreateDefaultAPIConfiguration(rv);
+            rv.DefaultAPIConfiguration = CreateDefaultApiConfiguration(rv);
             rv.Messages = LoadMessages(assembly, rv, attribute.MessageCatalogPaths);
             return rv;
         }
 
         public static APIConfigurationImpl
-        CreateDefaultAPIConfiguration(LocalConnectorInfoImpl localInfo)
+            CreateDefaultApiConfiguration(LocalConnectorInfoImpl localInfo)
         {
             SafeType<Connector> connectorClass =
                 localInfo.ConnectorClass;
@@ -629,9 +651,9 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
         private static CultureInfo[] GetLocalizedCultures(Assembly assembly)
         {
             FileInfo assemblyFile =
-               new FileInfo(assembly.Location);
+                new FileInfo(assembly.Location);
             DirectoryInfo directory =
-               assemblyFile.Directory;
+                assemblyFile.Directory;
             IList<CultureInfo> temp = new List<CultureInfo>();
             DirectoryInfo[] subdirs = directory.GetDirectories();
             foreach (DirectoryInfo subdir in subdirs)
@@ -666,8 +688,8 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
         }
 
         public static ConnectorMessagesImpl LoadMessages(Assembly assembly,
-                                                   LocalConnectorInfoImpl info,
-                                                   String[] nameBases)
+            LocalConnectorInfoImpl info,
+            String[] nameBases)
         {
             if (nameBases == null || nameBases.Length == 0)
             {
@@ -704,25 +726,6 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
             }
 
             return rv;
-        }
-
-        public ConnectorInfo FindConnectorInfo(ConnectorKey key)
-        {
-            foreach (ConnectorInfo info in _connectorInfo)
-            {
-                if (info.ConnectorKey.Equals(key))
-                {
-                    return info;
-                }
-            }
-            return null;
-        }
-        public IList<ConnectorInfo> ConnectorInfos
-        {
-            get
-            {
-                return CollectionUtil.AsReadOnlyList(_connectorInfo);
-            }
         }
     }
     #endregion
@@ -831,6 +834,11 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
         private readonly ConnectorOperationalContext operationalContext;
 
         /// <summary>
+        /// Shared thread counter. 
+        /// </summary>
+        private readonly ReferenceCounter referenceCounter = new ReferenceCounter();
+
+        /// <summary>
         /// Builds up the maps of supported operations and calls.
         /// </summary>
         public LocalConnectorFacadeImpl(LocalConnectorInfoImpl connectorInfo, APIConfigurationImpl apiConfiguration)
@@ -888,6 +896,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
         protected override APIOperation GetOperationImplementation(SafeType<APIOperation> api)
         {
             APIOperation proxy;
+            Boolean enableTimeoutProxy = true;
             //first create the inner proxy - this is the proxy that obtaining
             //a connection from the pool, etc
             //NOTE: we want to skip this part of the proxy for
@@ -908,6 +917,20 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
                 proxy =
                     new GetImpl((SearchApiOp)NewAPIOperationProxy(SafeType<APIOperation>.Get<SearchApiOp>(), handler));
             }
+            else if (api.RawType == typeof(IConnectorEventSubscriptionApiOp))
+            {
+                ConnectorAPIOperationRunnerProxy handler = new ConnectorAPIOperationRunnerProxy(OperationalContext, (opContext, connector) => new ConnectorEventSubscriptionApiOpImp(
+                    opContext, connector, referenceCounter));
+                proxy = NewAPIOperationProxy(api, handler);
+                enableTimeoutProxy = false;
+            }
+            else if (api.RawType == typeof(ISyncEventSubscriptionApiOp))
+            {
+                ConnectorAPIOperationRunnerProxy handler = new ConnectorAPIOperationRunnerProxy(OperationalContext, (opContext, connector) => new SyncEventSubscriptionApiOpImpl(
+                    opContext, connector, referenceCounter));
+                proxy = NewAPIOperationProxy(api, handler);
+                enableTimeoutProxy = false;
+            }
             else
             {
                 ConstructorInfo constructor =
@@ -919,11 +942,81 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
                     NewAPIOperationProxy(api, handler);
             }
 
-            // now wrap the proxy in the appropriate timeout proxy
-            proxy = CreateTimeoutProxy(api, proxy);
+            if (enableTimeoutProxy)
+            {
+                // now wrap the proxy in the appropriate timeout proxy
+                proxy = CreateTimeoutProxy(api, proxy);
+            }
             // add logging proxy..
             proxy = CreateLoggingProxy(api, proxy);
+            proxy = NewAPIOperationProxy(api, new ReferenceCountingProxy(proxy, referenceCounter));
+
             return proxy;
+        }
+        public virtual bool IsUnusedFor(TimeSpan duration)
+        {
+            return referenceCounter.IsUnusedFor(duration);
+        }
+
+        public class ReferenceCounter
+        {
+            private Int32 _threadCounts = 0;
+            private DateTime _lastUsed = DateTime.Now;
+
+            public virtual bool IsUnusedFor(TimeSpan duration)
+            {
+                return _threadCounts == 0 && DateTime.Now - _lastUsed > duration;
+            }
+
+            public virtual void Acquire()
+            {
+                Interlocked.Increment(ref _threadCounts);
+            }
+
+            public virtual void Release()
+            {
+                if (Interlocked.Decrement(ref _threadCounts) <= 0)
+                {
+                    _lastUsed = DateTime.Now;
+
+                }
+            }
+        }
+
+        private class ReferenceCountingProxy : InvocationHandler
+        {
+            private readonly object _target;
+            private readonly ReferenceCounter _referenceCounter;
+
+            public ReferenceCountingProxy(object target, ReferenceCounter referenceCounter)
+            {
+                _target = target;
+                _referenceCounter = referenceCounter;
+            }
+
+            public object Invoke(object proxy, MethodInfo method, object[] arguments)
+            {
+                // do not log equals, hashCode, toString               
+                if (method.DeclaringType == typeof(object))
+                {
+                    return method.Invoke(this, arguments);
+                }
+                try
+                {
+                    _referenceCounter.Acquire();
+                    return method.Invoke(_target, arguments);
+                }
+                catch (TargetInvocationException e)
+                {
+                    Exception root = e.InnerException;
+                    ExceptionUtil.PreserveStackTrace(root);
+                    throw root;
+                }
+                finally
+                {
+                    _referenceCounter.Release();
+                }
+            }
         }
     }
     #endregion
@@ -1116,7 +1209,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
         /// <summary>
         /// Return an object to the pool
         /// </summary>
-        /// <param name="object"></param>
+        /// <param name="obj"></param>
         public void ReturnObject(T obj)
         {
             Assertions.NullCheck(obj, "object");
@@ -1168,7 +1261,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
                     _handler.TestObject(rv.Object);
                     return rv.Object;
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     //it's bad - remove from active objects
                     lock (LOCK)
@@ -1180,7 +1273,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
                     //immediately
                     if (rv.IsNew)
                     {
-                        throw e;
+                        throw;
                     }
                 }
             }
@@ -1356,7 +1449,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
         /// <summary>
         /// Dispose of an object, but don't throw any exceptions
         /// </summary>
-        /// <param name="object"></param>
+        /// <param name="obj"></param>
         private void DisposeNoException(T obj)
         {
             try

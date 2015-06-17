@@ -25,6 +25,7 @@ using System;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
+using System.Threading;
 using Org.IdentityConnectors.Common;
 
 namespace Org.IdentityConnectors.Framework.Common.Objects.Filters
@@ -796,7 +797,7 @@ namespace Org.IdentityConnectors.Framework.Common.Objects.Filters
             return result;
         }
 
-        public override R Accept<R, P>(FilterVisitor<R, P> v, P p)
+        public override TR Accept<TR, TP>(FilterVisitor<TR, TP> v, TP p)
         {
             return v.VisitAndFilter(p, this);
         }
@@ -904,7 +905,7 @@ namespace Org.IdentityConnectors.Framework.Common.Objects.Filters
             return obj.GetAttributeByName(_attribute.Name) != null;
         }
         public abstract bool Accept(ConnectorObject obj);
-        public abstract R Accept<R, P>(FilterVisitor<R, P> v, P p);
+        public abstract TR Accept<TR, TP>(FilterVisitor<TR, TP> v, TP p);
     }
     #endregion
 
@@ -1493,6 +1494,437 @@ namespace Org.IdentityConnectors.Framework.Common.Objects.Filters
         {
             return new NotFilter(filter);
         }
+
+        /// <summary>
+        /// Creates a new <code>presence</code> filter using the provided attribute name.
+        /// </summary>
+        /// <param name="attributeName">
+        ///            The name of field within the <seealso cref="Org.IdentityConnectors.Framework.Common.Objects.ConnectorObject"/> which must be
+        ///            present. </param>
+        /// <returns> The newly created {@code presence} filter. </returns>
+        public static Filter Present(string attributeName)
+        {
+            return new PresenceFilter(attributeName);
+        }
+    }
+    #endregion
+
+    #region FilteredResultsHandlerVisitor
+
+    public enum FilterResult
+    {
+        False,
+        True,
+        Undefined
+    }
+
+    static class EnumExtensionMethods
+    {
+        public static bool ToBoolean(this FilterResult instance)
+        {
+            return instance == FilterResult.True; // UNDEFINED collapses to FALSE.
+        }
+
+    }
+
+    /// <summary>
+    /// A FilteredResultsHandlerVisitor can accept the
+    /// <seealso cref="ConnectorObject"/>. It
+    /// can be used for case-sensitive and case-ignore mode to accept the
+    /// <seealso cref="String"/> and <seealso cref="Char"/> values.
+    /// 
+    /// </summary>
+    /// <remarks>since 1.5</remarks>
+    public class FilteredResultsHandlerVisitor : FilterVisitor<FilterResult, ConnectorObject>
+    {
+
+        public static readonly FilteredResultsHandlerVisitor DefaultCaseSensitiveVisitor = new FilteredResultsHandlerVisitor(false);
+        public static readonly FilteredResultsHandlerVisitor DefaultCaseIgnoreVisitor = new FilteredResultsHandlerVisitor(true);
+
+        private FilterResult valueOf(bool b)
+        {
+            return b ? FilterResult.True : FilterResult.False;
+        }
+
+        public static Filter WrapFilter(Filter nestedFilter, bool caseIgnore)
+        {
+            return null == nestedFilter ? null : new InnerVisitorFilter(nestedFilter, caseIgnore);
+        }
+
+        private sealed class InnerVisitorFilter : Filter
+        {
+            private readonly Filter _nestedFilter;
+            private readonly bool _caseIgnore;
+
+            public InnerVisitorFilter(Filter nestedFilter, bool caseIgnore)
+            {
+                _nestedFilter = nestedFilter;
+                _caseIgnore = caseIgnore;
+            }
+
+            public bool Accept(ConnectorObject obj)
+            {
+                return _nestedFilter.Accept(_caseIgnore ? DefaultCaseIgnoreVisitor : DefaultCaseSensitiveVisitor, obj).ToBoolean();
+            }
+
+            public TR Accept<TR, TP>(FilterVisitor<TR, TP> v, TP p)
+            {
+                return v.VisitExtendedFilter(p, this);
+            }
+        }
+
+        private readonly bool _caseIgnore;
+
+        public FilteredResultsHandlerVisitor(bool caseIgnore)
+        {
+            _caseIgnore = caseIgnore;
+        }
+
+        public virtual FilterResult VisitAndFilter(ConnectorObject connectorObject, AndFilter filter)
+        {
+            FilterResult result = FilterResult.True;
+            foreach (Filter subFilter in filter.Filters)
+            {
+                FilterResult r = subFilter.Accept(this, connectorObject);
+                if (r.CompareTo(result) < 0)
+                {
+                    result = r;
+                }
+                if (result == FilterResult.False)
+                {
+                    break;
+                }
+            }
+            return result;
+        }
+
+        public virtual FilterResult VisitContainsFilter(ConnectorObject connectorObject, ContainsFilter filter)
+        {
+            FilterResult result = FilterResult.Undefined;
+            String valueAssertion = ExpectSingleValue<String>(connectorObject, filter.Name, typeof(String));
+            if (null != valueAssertion)
+            {
+                if (_caseIgnore)
+                {
+                    result = valueOf(valueAssertion.ToLower(Thread.CurrentThread.CurrentUICulture).Contains(filter.GetValue().ToLower(Thread.CurrentThread.CurrentUICulture)));
+                }
+                else
+                {
+                    result = valueOf(valueAssertion.Contains(filter.GetValue()));
+                }
+            }
+            return result;
+        }
+
+        public virtual FilterResult VisitContainsAllValuesFilter(ConnectorObject connectorObject, ContainsAllValuesFilter filter)
+        {
+            FilterResult result = FilterResult.Undefined;
+            ConnectorAttribute attribute = connectorObject.GetAttributeByName(filter.Name);
+            IList<object> attributeValues = null;
+            if (null != attribute && null != (attributeValues = attribute.Value))
+            {
+                IList<object> filterValues = filter.GetAttribute().Value;
+                if (filterValues.Count == 0)
+                {
+                    result = FilterResult.True;
+                }
+                else if (attributeValues.Count == 0)
+                {
+                    result = FilterResult.False;
+                }
+                else if (_caseIgnore)
+                {
+                    bool stillContains = true;
+                    foreach (object o in filter.GetAttribute().Value)
+                    {
+                        bool found = false;
+                        if (o is string)
+                        {
+                            foreach (object c in attributeValues)
+                            {
+                                if (c is string && ((string)c).Equals((string)o, StringComparison.CurrentCultureIgnoreCase))
+                                {
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+                        else if (o is char)
+                        {
+                            foreach (object c in attributeValues)
+                            {
+                                if (c is char && char.ToUpper((char)c) != char.ToUpper((char)o))
+                                {
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            result = valueOf(filter.GetAttribute().Value.Except(attributeValues).Any());
+                            break;
+                        }
+                        if (!(stillContains = stillContains && found))
+                        {
+                            break;
+                        }
+                    }
+                    result = valueOf(stillContains);
+                }
+                else
+                {
+                    result = valueOf(filter.GetAttribute().Value.Except(attributeValues).Any());
+                }
+            }
+            return result;
+        }
+        public virtual FilterResult VisitEqualsFilter(ConnectorObject connectorObject, EqualsFilter filter)
+        {
+            FilterResult result = FilterResult.Undefined;
+            ConnectorAttribute attribute = connectorObject.GetAttributeByName(filter.Name);
+            if (null != attribute)
+            {
+                IList<object> attributeValues = attribute.Value;
+                IList<object> filterValues = filter.GetAttribute().Value;
+                result = valueOf(CollectionUtil.Equals(attributeValues, filterValues, _caseIgnore));
+            }
+            return result;
+        }
+        public virtual FilterResult VisitExtendedFilter(ConnectorObject connectorObject, Filter filter)
+        {
+            FilterResult result = FilterResult.Undefined;
+            if (filter is PresenceFilter)
+            {
+                result = valueOf(null != connectorObject.GetAttributeByName(((PresenceFilter)filter).Name));
+            }
+            return result;
+        }
+        public virtual FilterResult VisitGreaterThanFilter(ConnectorObject connectorObject, GreaterThanFilter filter)
+        {
+            FilterResult result = FilterResult.Undefined;
+            Object valueAssertion = ExpectSingleValue(connectorObject, filter.Name);
+            if (null != valueAssertion)
+            {
+                if (!(valueAssertion is IComparable))
+                {
+                    throw new ArgumentException("Attribute value " + filter.Name + " must be comparable! Found" + valueAssertion.GetType());
+                }
+                object filterValue = filter.GetValue();
+                if (_caseIgnore && filterValue is String)
+                {
+                    var s = valueAssertion as string;
+                    if (s != null)
+                    {
+                        result = valueOf(String.Compare(s, (string)filterValue, StringComparison.OrdinalIgnoreCase) > 0);
+                    }
+                }
+                else if (_caseIgnore && filterValue is char)
+                {
+                    var c = valueAssertion as char?;
+                    if (c != null)
+                    {
+                        result = valueOf((Char.ToLower((char)c)) - (Char.ToLower((char)filterValue)) > 0);
+                    }
+                }
+                else
+                {
+                    result = valueOf(CollectionUtil.ForceCompare<IComparable>(valueAssertion, filterValue) > 0);
+                }
+            }
+            return result;
+        }
+
+
+        public virtual FilterResult VisitGreaterThanOrEqualFilter(ConnectorObject connectorObject, GreaterThanOrEqualFilter filter)
+        {
+            FilterResult result = FilterResult.Undefined;
+            object valueAssertion = ExpectSingleValue(connectorObject, filter.Name);
+            if (null != valueAssertion)
+            {
+                if (!(valueAssertion is IComparable))
+                {
+                    throw new ArgumentException("Attribute value " + filter.Name + " must be comparable! Found" + valueAssertion.GetType());
+                }
+                object filterValue = filter.GetValue();
+                if (_caseIgnore && filterValue is string)
+                {
+                    var s = valueAssertion as string;
+                    if (s != null)
+                    {
+                        result = valueOf(String.Compare(s, (string)filterValue, StringComparison.OrdinalIgnoreCase) >= 0);
+                    }
+                }
+                else if (_caseIgnore && filterValue is char)
+                {
+                    var c = valueAssertion as char?;
+                    if (c != null)
+                    {
+                        result = valueOf((Char.ToLower((char)c)) - (Char.ToLower((char)filterValue)) >= 0);
+                    }
+                }
+                else
+                {
+                    result = valueOf(CollectionUtil.ForceCompare<IComparable>(valueAssertion, filterValue) >= 0);
+                }
+            }
+            return result;
+        }
+        public virtual FilterResult VisitLessThanFilter(ConnectorObject connectorObject, LessThanFilter filter)
+        {
+            FilterResult result = FilterResult.Undefined;
+            object valueAssertion = ExpectSingleValue(connectorObject, filter.Name);
+            if (null != valueAssertion)
+            {
+                if (!(valueAssertion is IComparable))
+                {
+                    throw new ArgumentException("Attribute value " + filter.Name + " must be comparable! Found" + valueAssertion.GetType());
+                }
+                object filterValue = filter.GetValue();
+                if (_caseIgnore && filterValue is string)
+                {
+                    var s = valueAssertion as string;
+                    if (s != null)
+                    {
+                        result = valueOf(String.Compare(s, (string)filterValue, StringComparison.OrdinalIgnoreCase) < 0);
+                    }
+                }
+                else if (_caseIgnore && filterValue is char?)
+                {
+                    var c = valueAssertion as char?;
+                    if (c != null)
+                    {
+                        result = valueOf((Char.ToLower((char)c)) - (Char.ToLower((char)filterValue)) < 0);
+                    }
+                }
+                else
+                {
+                    result = valueOf(CollectionUtil.ForceCompare<IComparable>(valueAssertion, filterValue) < 0);
+                }
+            }
+            return result;
+        }
+        public virtual FilterResult VisitLessThanOrEqualFilter(ConnectorObject connectorObject, LessThanOrEqualFilter filter)
+        {
+            FilterResult result = FilterResult.Undefined;
+            object valueAssertion = ExpectSingleValue(connectorObject, filter.Name);
+            if (null != valueAssertion)
+            {
+                if (!(valueAssertion is IComparable))
+                {
+                    throw new ArgumentException("Attribute value " + filter.Name + " must be comparable! Found" + valueAssertion.GetType());
+                }
+                object filterValue = filter.GetValue();
+                if (_caseIgnore && filterValue is string)
+                {
+                    var s = valueAssertion as string;
+                    if (s != null)
+                    {
+                        result = valueOf(String.Compare(s, (string)filterValue, StringComparison.OrdinalIgnoreCase) <= 0);
+                    }
+                }
+                else if (_caseIgnore && filterValue is char?)
+                {
+                    var c = valueAssertion as char?;
+                    if (c != null)
+                    {
+                        result = valueOf((Char.ToLower((char)c)) - (Char.ToLower((char)filterValue)) <= 0);
+                    }
+                }
+                else
+                {
+                    result = valueOf(CollectionUtil.ForceCompare<IComparable>(valueAssertion, filterValue) <= 0);
+                }
+            }
+            return result;
+        }
+        public virtual FilterResult VisitNotFilter(ConnectorObject connectorObject, NotFilter filter)
+        {
+            switch (filter.Filter.Accept(this, connectorObject))
+            {
+                case FilterResult.False:
+                    return FilterResult.True;
+                case FilterResult.Undefined:
+                    return FilterResult.Undefined;
+                default: // TRUE
+                    return FilterResult.False;
+            }
+        }
+
+        public virtual FilterResult VisitOrFilter(ConnectorObject connectorObject, OrFilter filter)
+        {
+            FilterResult result = FilterResult.False;
+            foreach (Filter subFilter in filter.Filters)
+            {
+                FilterResult r = subFilter.Accept(this, connectorObject);
+                if (r.CompareTo(result) > 0)
+                {
+                    result = r;
+                }
+                if (result == FilterResult.True)
+                {
+                    break;
+                }
+            }
+            return result;
+        }
+
+        public virtual FilterResult VisitStartsWithFilter(ConnectorObject connectorObject, StartsWithFilter filter)
+        {
+            FilterResult result = FilterResult.Undefined;
+            String valueAssertion = ExpectSingleValue<String>(connectorObject, filter.Name, typeof(String));
+            if (null != valueAssertion)
+            {
+                if (_caseIgnore)
+                {
+                    result = valueOf(valueAssertion.ToLower(Thread.CurrentThread.CurrentUICulture).StartsWith(filter.GetValue().ToLower(Thread.CurrentThread.CurrentUICulture)));
+                }
+                else
+                {
+                    result = valueOf(valueAssertion.StartsWith(filter.GetValue()));
+                }
+            }
+            return result;
+        }
+
+        public virtual FilterResult VisitEndsWithFilter(ConnectorObject connectorObject, EndsWithFilter filter)
+        {
+            FilterResult result = FilterResult.Undefined;
+            String valueAssertion = ExpectSingleValue<String>(connectorObject, filter.Name, typeof(String));
+            if (null != valueAssertion)
+            {
+                if (_caseIgnore)
+                {
+                    result = valueOf(valueAssertion.ToLower(Thread.CurrentThread.CurrentUICulture).EndsWith(filter.GetValue().ToLower(Thread.CurrentThread.CurrentUICulture)));
+                }
+                else
+                {
+                    result = valueOf(valueAssertion.EndsWith(filter.GetValue()));
+                }
+            }
+            return result;
+        }
+
+        protected internal virtual T ExpectSingleValue<T>(ConnectorObject connectorObject, string attributeName, Type expect)
+        {
+            object o = ExpectSingleValue(connectorObject, attributeName);
+            if (null != o && expect.IsInstanceOfType(o))
+            {
+                return (T)o;
+            }
+            return default(T);
+        }
+
+        protected internal virtual object ExpectSingleValue(ConnectorObject connectorObject, string attributeName)
+        {
+            ConnectorAttribute attr = connectorObject.GetAttributeByName(attributeName);
+            if (null != attr && null != attr.Value && attr.Value.Count() == 1)
+            {
+                return attr.Value[0];
+            }
+            return null;
+        }
+
     }
     #endregion
 
@@ -1522,7 +1954,7 @@ namespace Org.IdentityConnectors.Framework.Common.Objects.Filters
         /// <seealso cref="Filter.Accept(ConnectorObject)" />
         public override bool Accept(ConnectorObject obj)
         {
-            return IsPresent(obj) && this.Compare(obj) > 0;
+            return IsPresent(obj) && Compare(obj) > 0;
         }
 
         public override R Accept<R, P>(FilterVisitor<R, P> v, P p)
@@ -1558,7 +1990,7 @@ namespace Org.IdentityConnectors.Framework.Common.Objects.Filters
         /// <seealso cref="Filter.Accept(ConnectorObject)" />
         public override bool Accept(ConnectorObject obj)
         {
-            return IsPresent(obj) && this.Compare(obj) >= 0;
+            return IsPresent(obj) && Compare(obj) >= 0;
         }
 
         public override R Accept<R, P>(FilterVisitor<R, P> v, P p)
@@ -1794,6 +2226,53 @@ namespace Org.IdentityConnectors.Framework.Common.Objects.Filters
                 builder.Append(subFilter);
             }
             return builder.Append(')').ToString();
+        }
+    }
+    #endregion
+
+    #region PresenceFilter
+    /// <summary>
+    /// A PresenceFilter determines if the attribute provided is present in the
+    /// <seealso cref="ConnectorObject"/>  
+    /// </summary>
+    /// <remarks>since 1.5</remarks>
+    public class PresenceFilter : Filter
+    {
+
+        private readonly string _name;
+
+        public PresenceFilter(string attributeName)
+        {
+            this._name = attributeName;
+            if (StringUtil.IsBlank(_name))
+            {
+                throw new ArgumentException("Attribute name not be null!");
+            }
+        }
+
+        /// <summary>
+        /// Name of the attribute to find in the <seealso cref="ConnectorObject"/>.
+        /// </summary>
+        public virtual string Name
+        {
+            get
+            {
+                return _name;
+            }
+        }
+
+        /// <summary>
+        /// Determines if the attribute provided is present in the
+        /// <seealso cref="ConnectorObject"/>.
+        /// </summary>
+        public virtual bool Accept(ConnectorObject obj)
+        {
+            return obj.GetAttributeByName(_name) != null;
+        }
+
+        public virtual R Accept<R, P>(FilterVisitor<R, P> v, P p)
+        {
+            return v.VisitExtendedFilter(p, this);
         }
     }
     #endregion

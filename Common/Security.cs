@@ -19,9 +19,10 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2014 ForgeRock AS.
+ * Portions Copyrighted 2014-2015 ForgeRock AS.
  */
 using System;
+using System.Linq;
 using System.Security;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
@@ -726,6 +727,8 @@ namespace Org.IdentityConnectors.Common.Security
     /// </summary>
     public static class SecurityUtil
     {
+        public static string[] LowerHexArray = Enumerable.Range(0, 256).Select(v => v.ToString("x2")).ToArray();
+        public static string[] UpperHexArray = Enumerable.Range(0, 256).Select(v => v.ToString("X2")).ToArray();
 
         /// <summary>
         /// Converts chars to bytes without using any external functions
@@ -760,8 +763,8 @@ namespace Org.IdentityConnectors.Common.Security
         /// This guarantees the caller that they only
         /// need to cleanup the input and result.
         /// </remarks>
-        /// <param name="chars">The chars</param>
-        /// <returns>The bytes</returns>
+        /// <param name="bytes">The bytes</param>
+        /// <returns>The chars</returns>
         public static UnmanagedArray<char> BytesToChars(UnmanagedArray<byte> bytes)
         {
             UnmanagedCharArray chars = new UnmanagedCharArray(bytes.Length / 2);
@@ -801,6 +804,42 @@ namespace Org.IdentityConnectors.Common.Security
                     SecurityUtil.Clear(managedBytes);
                 }
             }
+        }
+
+        /// <summary>
+        /// Computes the Hex encoded SHA1 hash of the input.
+        /// </summary>
+        /// <param name="bytes">
+        ///            The input bytes. </param>
+        /// <param name="toLowerCase">
+        ///            {@code true} converts to lowercase or {@code false} to
+        ///            uppercase </param>
+        /// <returns> the hash (computed from the input bytes).</returns>
+        /// <remarks>since 1.5</remarks> 
+        public static string ComputeHexSHA1Hash(byte[] bytes, bool toLowerCase)
+        {
+            SHA1 hasher = SHA1.Create();
+            byte[] data = hasher.ComputeHash(bytes);
+            return BytesToHex(data, toLowerCase);
+        }
+
+        /// <summary>
+        /// Computes the Hex encoded input.
+        /// </summary>
+        /// <param name="bytes">
+        ///            The input bytes to convert to Hex characters </param>
+        /// <param name="toLowerCase">
+        ///            {@code true} converts to lowercase or {@code false} to
+        ///            uppercase </param>
+        /// <returns> A String containing hexadecimal characters</returns>
+        /// <remarks>since 1.5</remarks> 
+        public static string BytesToHex(byte[] bytes, bool toLowerCase)
+        {
+            StringBuilder hexChars = new StringBuilder(bytes.Length * 2);
+            string[] hexArray = toLowerCase ? LowerHexArray : UpperHexArray;
+            foreach (var v in bytes)
+                hexChars.Append(hexArray[v]);
+            return hexChars.ToString();
         }
 
         /// <summary>

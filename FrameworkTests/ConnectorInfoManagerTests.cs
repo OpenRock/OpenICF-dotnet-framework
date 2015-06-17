@@ -19,7 +19,7 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2012-2014 ForgeRock AS.
+ * Portions Copyrighted 2012-2015 ForgeRock AS.
  */
 using System;
 using System.Collections;
@@ -41,7 +41,10 @@ using Org.IdentityConnectors.Framework.Impl.Api.Local;
 using System.Threading;
 using System.Globalization;
 using System.Net.Security;
+using System.Reactive.Linq;
 using System.Security.Cryptography.X509Certificates;
+using Org.IdentityConnectors.Test.Common;
+
 namespace FrameworkTests
 {
     [TestFixture]
@@ -373,6 +376,72 @@ namespace FrameworkTests
                     }, null);
                     Assert.IsNotNull(lastToken);
                     Assert.AreEqual(lastToken.Value, latest.Value);
+                }
+            }
+        }
+
+        [Test]
+        public void TestSubscriptionOperation()
+        {
+            foreach (ConnectorFacade facade in CreateStateFulFacades())
+            {
+                if (facade is LocalConnectorFacadeImpl)
+                {
+                    ToListResultsHandler handler = new ToListResultsHandler();
+                    CountdownEvent cde = new CountdownEvent(1);
+                    var localFacade = facade;
+                    var connectorObjectObservable =
+                        Observable.Create<ConnectorObject>(o => localFacade.Subscribe(ObjectClass.ACCOUNT, null, o, null));
+
+
+                    var subscription = connectorObjectObservable.Subscribe(
+                        co =>
+                        {
+                            Console.WriteLine("Connector Event received:{0}", co.Uid.GetUidValue());
+                            handler.ResultsHandler.Handle(co);
+                        },
+                        ex =>
+                        {
+                            cde.Signal();
+                            Assert.AreEqual(handler.Objects.Count, 10, "Uncompleted  subscription");
+                        });
+
+
+                    cde.Wait(new TimeSpan(0, 0, 25));
+                    subscription.Dispose();
+                    Assert.AreEqual(10, handler.Objects.Count);
+
+                    handler = new ToListResultsHandler();
+                    cde = new CountdownEvent(1);
+
+                    var syncDeltaObservable =
+                        Observable.Create<SyncDelta>(o => localFacade.Subscribe(ObjectClass.ACCOUNT, null, o, null));
+
+                    IDisposable[] subscriptions = new IDisposable[1];
+                    subscriptions[0] = syncDeltaObservable.Subscribe(
+                        delta =>
+                        {
+                            Console.WriteLine("Sync Event received:{0}", delta.Token.Value);
+                            if (((int?)delta.Token.Value) > 2)
+                            {
+                                subscriptions[0].Dispose();
+                                cde.Signal();
+                            }
+                            handler.ResultsHandler.Handle(delta.Object);
+                        },
+                        ex =>
+                        {
+                            cde.Signal();
+                            Assert.Fail("Failed Subscription", ex);
+                        });
+
+                    cde.Wait(new TimeSpan(0, 0, 25));
+                    for (int i = 0; i < 5 && !(handler.Objects.Count > 2); i++)
+                    {
+                        Console.WriteLine("Wait for result handler thread to complete: {0}", i);
+                        Thread.Sleep(200); // Wait to complete all other threads
+                    }
+                    Assert.IsTrue(handler.Objects.Count < 10 && handler.Objects.Count > 2);
                 }
             }
         }
