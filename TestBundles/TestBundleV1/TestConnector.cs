@@ -27,6 +27,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Org.IdentityConnectors.Common;
@@ -213,7 +214,7 @@ namespace org.identityconnectors.testconnector
 
         public virtual Uid Authenticate(ObjectClass objectClass, string username, GuardedString password, OperationOptions options)
         {
-            if (_config.ReturnNullTest)
+            if (_config.returnNullTest)
             {
                 return null;
             }
@@ -309,11 +310,11 @@ namespace org.identityconnectors.testconnector
         public Uid Create(ObjectClass objectClass, ICollection<ConnectorAttribute> createAttributes, OperationOptions options)
         {
             ConnectorAttributesAccessor accessor = new ConnectorAttributesAccessor(createAttributes);
-            if (_config.ReturnNullTest)
+            if (_config.returnNullTest)
             {
                 return null;
             }
-            else if (_config.IsTestObjectClass(objectClass))
+            if (_config.IsTestObjectClass(objectClass))
             {
                 return _config.GeObjectCache(objectClass).Create(createAttributes);
             }
@@ -345,7 +346,7 @@ namespace org.identityconnectors.testconnector
 
         public void Delete(ObjectClass objectClass, Uid uid, OperationOptions options)
         {
-            if (_config.ReturnNullTest)
+            if (_config.returnNullTest)
             {
                 return;
             }
@@ -377,7 +378,7 @@ namespace org.identityconnectors.testconnector
 
         public virtual Uid ResolveUsername(ObjectClass objectClass, string username, OperationOptions options)
         {
-            if (_config.ReturnNullTest)
+            if (_config.returnNullTest)
             {
                 return null;
             }
@@ -390,14 +391,14 @@ namespace org.identityconnectors.testconnector
 
         public virtual Schema Schema()
         {
-            if (_config.ReturnNullTest)
+            if (_config.returnNullTest)
             {
                 return null;
             }
             else
             {
                 SchemaBuilder builder = new SchemaBuilder(SafeType<Connector>.ForRawType(GetType()));
-                foreach (string type in _config.TestObjectClass)
+                foreach (string type in _config.testObjectClass)
                 {
                     ObjectClassInfoBuilder classInfoBuilder = new ObjectClassInfoBuilder();
                     classInfoBuilder.ObjectType = type;
@@ -410,7 +411,7 @@ namespace org.identityconnectors.testconnector
 
         public virtual object RunScriptOnResource(ScriptContext request, OperationOptions options)
         {
-            if (_config.ReturnNullTest)
+            if (_config.returnNullTest)
             {
                 return null;
             }
@@ -418,7 +419,10 @@ namespace org.identityconnectors.testconnector
             {
                 try
                 {
-                    return ScriptExecutorFactory.NewInstance(request.ScriptLanguage).NewScriptExecutor(null, request.ScriptText, true).Execute(request.ScriptArguments);
+                    Assembly assembly = GetType().Assembly;
+                    List<Assembly> list = assembly.GetReferencedAssemblies().Select(Assembly.Load).ToList();
+
+                    return ScriptExecutorFactory.NewInstance(request.ScriptLanguage).NewScriptExecutor(list.ToArray(), request.ScriptText, true).Execute(request.ScriptArguments);
                 }
                 catch (Exception e)
                 {
@@ -426,6 +430,7 @@ namespace org.identityconnectors.testconnector
                 }
             }
         }
+
         public FilterTranslator<Filter> CreateFilterTranslator(ObjectClass objectClass, OperationOptions options)
         {
             return new FilterTranslatorAnonymousInnerClassHelper();
@@ -456,13 +461,13 @@ namespace org.identityconnectors.testconnector
 
             // Rebuild the full result set.
             SortedSet<ConnectorObject> resultSet = new SortedSet<ConnectorObject>(new ResourceComparator(sortKeys));
-            if (_config.ReturnNullTest)
+            if (_config.returnNullTest)
             {
                 return;
             }
             else if (_config.IsTestObjectClass(objectClass))
             {
-                Filter filter = FilteredResultsHandlerVisitor.WrapFilter(query, _config.CaseIgnore);
+                Filter filter = FilteredResultsHandlerVisitor.WrapFilter(query, _config.caseIgnore);
                 foreach (var connectorObject in _config.GeObjectCache(objectClass).GetIterable(filter))
                 {
                     resultSet.Add(connectorObject);
@@ -555,7 +560,7 @@ namespace org.identityconnectors.testconnector
 
         public void Sync(ObjectClass objectClass, SyncToken token, SyncResultsHandler handler, OperationOptions options)
         {
-            if (_config.ReturnNullTest)
+            if (_config.returnNullTest)
             {
                 return;
             }
@@ -584,7 +589,7 @@ namespace org.identityconnectors.testconnector
 
         public SyncToken GetLatestSyncToken(ObjectClass objectClass)
         {
-            if (_config.ReturnNullTest)
+            if (_config.returnNullTest)
             {
                 return null;
             }
@@ -602,13 +607,13 @@ namespace org.identityconnectors.testconnector
         {
             if (_config.failValidation)
             {
-                throw new ConnectorException("validation failed " + CultureInfo.CurrentUICulture.TwoLetterISOLanguageName);
+                throw new ConnectorException("test failed " + CultureInfo.CurrentUICulture.TwoLetterISOLanguageName);
             }
         }
 
         public Uid Update(ObjectClass objectClass, Uid uid, ICollection<ConnectorAttribute> replaceAttributes, OperationOptions options)
         {
-            if (_config.ReturnNullTest)
+            if (_config.returnNullTest)
             {
                 return null;
             }
@@ -892,13 +897,13 @@ namespace org.identityconnectors.testconnector
     #region TstStatefulConnectorConfig
     public class TstStatefulConnectorConfig : TstConnectorConfig, StatefulConfiguration
     {
-        public Boolean CaseIgnore { get; set; }
+        public Boolean caseIgnore { get; set; }
 
-        public String[] TestObjectClass { get; set; }
+        public String[] testObjectClass { get; set; }
 
-        public Boolean ReturnNullTest { get; set; }
+        public Boolean returnNullTest { get; set; }
 
-        public String RandomString { get; set; }
+        public String randomString { get; set; }
 
         private Guid? guid;
 
@@ -924,7 +929,7 @@ namespace org.identityconnectors.testconnector
 
         public bool IsTestObjectClass(ObjectClass objectClass)
         {
-            return null != objectClass && null != TestObjectClass && TestObjectClass.Contains(objectClass.GetObjectClassValue(), StringComparer.OrdinalIgnoreCase);
+            return null != objectClass && null != testObjectClass && testObjectClass.Contains(objectClass.GetObjectClassValue(), StringComparer.OrdinalIgnoreCase);
         }
 
         public virtual Uid ResolveByUsername(ObjectClass objectClass, string username)
@@ -996,7 +1001,7 @@ namespace org.identityconnectors.testconnector
 
         internal virtual Uid GetNextUid(string uid)
         {
-            return new Uid(uid, Convert.ToString(Interlocked.Increment(ref _id)));
+            return new Uid(uid, Convert.ToString(Interlocked.Increment(ref _revision)));
         }
 
         private Int32 _id = 0;
@@ -1063,13 +1068,18 @@ namespace org.identityconnectors.testconnector
                     throw new InvalidAttributeValueException("__NAME__ can not be blank");
                 }
                 Uid uid = _newUid();
-                if (_uniqueNameIndex.GetOrAdd(name.GetNameValue(), uid.GetUidValue()) == null)
+                try
                 {
-                    var builder = new ConnectorObjectBuilder { ObjectClass = _objectClass };
-                    builder.AddAttributes(createAttributes).SetUid(uid);
+                    var d = _uniqueNameIndex.GetOrAdd(name.GetNameValue(), uid.GetUidValue());
+                    if (d == uid.GetUidValue())
+                    {
+                        var builder = new ConnectorObjectBuilder {ObjectClass = _objectClass};
+                        builder.AddAttributes(createAttributes).SetUid(uid);
 
-                    ObjectCache.TryAdd(uid.GetUidValue(), new ConnectorObjectCacheEntry(builder.Build(), _getNextUid));
-                    return uid;
+                        ObjectCache.TryAdd(uid.GetUidValue(),
+                            new ConnectorObjectCacheEntry(builder.Build(), _getNextUid));
+                        return uid;
+                    }
                 }
                 else
                 {

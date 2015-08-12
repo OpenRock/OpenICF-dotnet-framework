@@ -19,7 +19,7 @@
   enclosed by brackets [] replaced by your own identifying information: 
   "Portions Copyrighted [year] [name of copyright owner]"
   ====================
-  Portions Copyrighted 2012-2014 ForgeRock AS
+  Portions Copyrighted 2012-2015 ForgeRock AS
 -->
 <Project DefaultTargets="Clean" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <PropertyGroup>
@@ -34,9 +34,12 @@
     <WriteLinesToFile File="Files.wxs" Lines="@(FileTopLines)" Overwrite="true" />
 
     <ItemGroup>
-      <AllFiles Include="..\Service\bin\$(Configuration)\*.*"
-		            Exclude="..\Service\bin\$(Configuration)\*.exe"/>
-      <EXEFiles Include="..\Service\bin\$(Configuration)\ConnectorServer.exe"/>
+      <AllFiles Include="..\Service\bin\$(Configuration)\*.config" KeepDuplicates="false"/> 
+      <AllFiles Include="..\Service\bin\$(Configuration)\ConnectorServer.pdb" KeepDuplicates="false"/> 
+      <AllFiles Include="..\ConnectorServerService\bin\$(Configuration)\*.*"
+		            Exclude="..\ConnectorServerService\bin\$(Configuration)\*.exe" KeepDuplicates="false"/>   
+      <LegacyEXEFiles Include="..\Service\bin\$(Configuration)\ConnectorServer.exe"/>
+      <EXEFiles Include="..\ConnectorServerService\bin\$(Configuration)\ConnectorServerService.exe"/>
       <PowerShellScriptExecutorFactoryFiles  Include="..\PowerShellScriptExecutorFactory\bin\$(Configuration)\*.ScriptExecutorFactory.*"/>
       <ShellScriptExecutorFactoryFiles Include="..\ShellScriptExecutorFactory\bin\$(Configuration)\*.ScriptExecutorFactory.*"/>
       <LegalFiles Include="..\legal\*.txt"
@@ -82,6 +85,7 @@
     <Copy SourceFiles="@(AllFiles)" DestinationFolder="bin\$(Configuration)\target" />
     <Copy SourceFiles="@(PowerShellScriptExecutorFactoryFiles)" DestinationFolder="bin\$(Configuration)\target" />
     <Copy SourceFiles="@(ShellScriptExecutorFactoryFiles)" DestinationFolder="bin\$(Configuration)\target" />
+    <Copy SourceFiles="@(LegacyEXEFiles)" DestinationFolder="bin\$(Configuration)\target" />
     <Copy SourceFiles="@(EXEFiles)" DestinationFolder="bin\$(Configuration)\target" />
     <Copy SourceFiles="..\legal\CDDLv1.txt" DestinationFolder="bin\$(Configuration)\target\legal-notices" />
     <Copy SourceFiles="..\legal\ForgeRock_License.txt" DestinationFolder="bin\$(Configuration)\target\legal-notices" Condition=" '$(ForgeRockLegal)' == 'true' "/>
@@ -90,6 +94,7 @@
             bin\$(Configuration)\target\**\*.pdb;
             bin\$(Configuration)\target\**\*.exe;
             bin\$(Configuration)\target\**\*.config;
+            bin\$(Configuration)\target\**\*.xml;
             bin\$(Configuration)\target\**\*.txt" Exclude="*.zip" />
     </ItemGroup>
     <Zip Files="@(ZipFiles)" WorkingDirectory="bin\$(Configuration)\target" ZipFileName="bin\$(Configuration)\openicf-$(OpenICFVersion)-dotnet.zip" />

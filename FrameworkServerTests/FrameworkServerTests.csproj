@@ -1,0 +1,134 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ====================
+  DO NOT REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+
+  Copyright (c) 2015 ForgeRock AS. All rights reserved.
+
+  The contents of this file are subject to the terms of the Common Development 
+  and Distribution License("CDDL") (the "License").  You may not use this file 
+  except in compliance with the License.
+  
+  You can obtain a copy of the License at 
+  http://opensource.org/licenses/CDDL-1.0
+  See the License for the specific language governing permissions and limitations 
+  under the License. 
+  
+  When distributing the Covered Code, include this CDDL Header Notice in each file
+  and include the License file at legal/CDDLv1.txt.
+  If applicable, add the following below this CDDL Header, with the fields 
+  enclosed by brackets [] replaced by your own identifying information: 
+  "Portions Copyrighted [year] [name of copyright owner]"
+  ====================
+-->
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{46365523-FA23-4AD4-9DB8-B0E195F00571}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Org.ForgeRock.OpenICF.Framework.Remote</RootNamespace>
+    <AssemblyName>FrameworkServerTests</AssemblyName>
+    <ProductName>OpenICF Framework - Connector Server Tests</ProductName>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <ProjectTypeGuids>{3AC096D0-A1C2-E12C-1390-A8335801FDAB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <TestProjectType>UnitTest</TestProjectType>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Google.Protobuf">
+      <HintPath>..\packages\Google.ProtocolBuffers.3\lib\Google.Protobuf.dll</HintPath>
+    </Reference>
+    <Reference Include="nunit.framework" />
+    <Reference Include="System" />
+    <Reference Include="System.IdentityModel" />
+    <Reference Include="System.ServiceModel" />
+    <Reference Include="System.ServiceModel.Channels" />
+    <Reference Include="System.ServiceProcess" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="WcfServiceTests.cs" />
+    <Compile Include="AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Common\Common.csproj">
+      <Project>{f140e8da-52b4-4159-992a-9da10ea8eefb}</Project>
+      <Name>Common</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Framework\Framework.csproj">
+      <Project>{8b24461b-456a-4032-89a1-cd418f7b5b62}</Project>
+      <Name>Framework</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\FrameworkInternal\FrameworkInternal.csproj">
+      <Project>{5b011775-b121-4eee-a410-ba2d2f5bfb8b}</Project>
+      <Name>FrameworkInternal</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\FrameworkRPC\FrameworkRpc.csproj">
+      <Project>{b85c5a35-e3a2-4b04-9693-795e57d66de2}</Project>
+      <Name>FrameworkRpc</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\FrameworkServer\FrameworkServer.csproj">
+      <Project>{5b47befd-c60b-4e80-943e-a7151ceea568}</Project>
+      <Name>FrameworkServer</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WcfServiceLibrary\WcfServiceLibrary.csproj">
+      <Project>{d1771e11-c7d3-43fd-9d87-46f1231846f1}</Project>
+      <Name>WcfServiceLibrary</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\ConnectorServerService\ConnectorServerService.csproj">
+      <Project>{E5DCC07F-7B42-4AE9-8D6C-A15525476E0A}</Project>
+      <Name>ConnectorServerService</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(MSBuildProjectDirectory)\..\Framework.targets" />
+  <Target Name="BeforeBuild">
+    <MakeDir Directories="$(OutputPath)" />
+    <!-- Building test bundles and script executor factories here because we do not want FrameworkTests to depend on them -->
+    <!-- Build TestBundle V1 -->
+    <MSBuild Projects="..\TestBundles\TestBundleV1\TestBundleV1.csproj" />
+    <CreateItem Include="..\TestBundles\TestBundleV1\bin\$(Configuration)\TestBundleV1*.*">
+      <Output TaskParameter="Include" ItemName="V1SourceFiles" />
+    </CreateItem>
+    <CreateItem Include="..\TestBundles\TestBundleV1\bin\$(Configuration)\es*\**">
+      <Output TaskParameter="Include" ItemName="V1LocaleESSourceFiles" />
+    </CreateItem>
+    <Copy SourceFiles="@(V1LocaleESSourceFiles)" DestinationFolder="bin\$(Configuration)\%(RecursiveDir)" />
+    <Copy SourceFiles="@(V1SourceFiles)" DestinationFolder="bin\$(Configuration)" />
+    <!-- Build BooScriptExecutor -->
+    <MSBuild Projects="..\BooScriptExecutorFactory\BooScriptExecutorFactory.csproj" />
+    <CreateItem Include="..\BooScriptExecutorFactory\bin\$(Configuration)\Boo*.dll">
+      <Output TaskParameter="Include" ItemName="BooScriptExecutorFiles" />
+    </CreateItem>
+    <Copy SourceFiles="@(BooScriptExecutorFiles)" DestinationFolder="bin\$(Configuration)" />
+  </Target>
+  <Target Name="AfterBuild" Condition=" !Exists('$(SharpDevelopBinPath)') ">
+    <!-- Run the tests -->
+    <CreateItem Include="FrameworkServerTests.dll">
+      <Output TaskParameter="Include" ItemName="TestAssembly" />
+    </CreateItem>
+    <!--MSBuild.Community.Tasks.NUnit DisableShadowCopy="true" WorkingDirectory="bin\$(Configuration)" Assemblies="@(TestAssembly)" ContinueOnError="true" ToolPath="$(NUNIT_HOME)\bin" OutputXmlFile="TestResults_$(Configuration).xml" /-->
+  </Target>
+  <Target Name="Clean">
+    <Delete Files="AssemblyInfo.cs;version.txt" />
+    <RemoveDir Directories="obj;bin" />
+  </Target>
+</Project>

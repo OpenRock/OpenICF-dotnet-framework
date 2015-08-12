@@ -1,0 +1,1 @@
+..\..\packages\Google.ProtocolBuffers.3\tools\protoc.exe -I=. --csharp_out=.. .\CommonObjectMessages.proto .\OperationMessages.proto .\RPCMessages.proto

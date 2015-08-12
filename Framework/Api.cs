@@ -71,7 +71,7 @@ namespace Org.IdentityConnectors.Framework.Api
         /// <param name="ChangeListener">
         ///            the callback handler to receive the change event. </param>
         /// <returns> a closeable to unregister the change listener. </returns>
-        IConfigurationPropertyChangeListener ChangeListener { set; }
+        IConfigurationPropertyChangeListener ChangeListener { get; set; }
 
         /// <summary>
         /// Determines if this <seealso cref="Connector"/> uses the framework's connector

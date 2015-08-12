@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!--
   ====================
   DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
@@ -29,9 +29,10 @@
     <OutputType>Package</OutputType>
     <RootNamespace>ServiceInstall</RootNamespace>
     <OutputName>ServiceInstall</OutputName>
+    <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND '$(MSBuildExtensionsPath32)' != '' ">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' ">$(MSBuildExtensionsPath)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <SupressIces>ICE45</SupressIces>
-    <OpenICFVersion>1.4.2.0-SNAPSHOT</OpenICFVersion>	
+    <OpenICFVersion>1.5.0.0-SNAPSHOT</OpenICFVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <ErrorReport>prompt</ErrorReport>
@@ -54,17 +55,38 @@
     <DebugSymbols>true</DebugSymbols>
     <Optimize>True</Optimize>
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
-    <OpenICFVersion>1.4.2.0</OpenICFVersion>
+    <OpenICFVersion>1.5.0.0</OpenICFVersion>
   </PropertyGroup>
   <Import Project="$(WixTargetsPath)" />
   <Import Project="$(MSBuildExtensionsPath)\MSBuildCommunityTasks\MSBuild.Community.Tasks.Targets" />
   <ItemGroup>
-    <WixExtension Include="WixUIExtension">
+    <!--WixExtension Include="WixUIExtension">
       <HintPath>WixUIExtension</HintPath>
       <Name>WixUIExtension</Name>
     </WixExtension>
+    <WixExtension Include="WixUtilExtension">
+      <HintPath>$(WixExtDir)\WixUtilExtension.dll</HintPath>
+      <Name>WixUtilExtension</Name>
+    </WixExtension-->
+    <WixExtension Include="WixUIExtension">
+      <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
+      <Name>WixUIExtension</Name>
+    </WixExtension>
+    <WixExtension Include="WixNetFxExtension">
+      <HintPath>$(WixExtDir)\WixNetFxExtension.dll</HintPath>
+      <Name>WixNetFxExtension</Name>
+    </WixExtension>
     <Compile Include="Files.wxs" />
     <Compile Include="Setup.wxs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Resources" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Resources\FR_ICF_sq_med.ico" />
+    <Content Include="Resources\setupBanner.bmp" />
+    <Content Include="Resources\setupDialog.bmp" />
+    <!--Content Include="Resources\openicf_License.rtf" /-->
   </ItemGroup>
   <Import Project="ExtBuild.proj" />
   <ItemGroup>
@@ -73,6 +95,14 @@
       <Project>{f140e8da-52b4-4159-992a-9da10ea8eefb}</Project>
       <Private>True</Private>
       <DoNotHarvest>True</DoNotHarvest>
+    </ProjectReference>
+    <ProjectReference Include="..\ConnectorServerService\ConnectorServerService.csproj">
+      <Name>ConnectorServerService</Name>
+      <Project>{e5dcc07f-7b42-4ae9-8d6c-a15525476e0a}</Project>
+      <Private>True</Private>
+      <DoNotHarvest>True</DoNotHarvest>
+      <RefProjectOutputGroups>Binaries;Content;Satellites</RefProjectOutputGroups>
+      <RefTargetDir>INSTALLFOLDER</RefTargetDir>
     </ProjectReference>
     <ProjectReference Include="..\FrameworkInternal\FrameworkInternal.csproj">
       <Name>FrameworkInternal</Name>

@@ -21,7 +21,7 @@
   "Portions Copyrighted [year] [name of copyright owner]"
   ====================
 -->
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{0747C440-70E4-4E63-9F9D-03B3A010C991}</ProjectGuid>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -29,8 +29,9 @@
     <OutputType>Library</OutputType>
     <RootNamespace>Org.IdentityConnectors.Common.Script.Boo</RootNamespace>
     <AssemblyName>Boo.ScriptExecutorFactory</AssemblyName>
-    <ProductName>BooScriptExecutorFactory</ProductName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <ProductName>Boo ScriptExecutor Factory</ProductName>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <ErrorReport>prompt</ErrorReport>
@@ -42,6 +43,7 @@
     <Optimize>False</Optimize>
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DebugType>pdbonly</DebugType>
@@ -53,6 +55,7 @@
     <DebugSymbols>true</DebugSymbols>
     <Optimize>True</Optimize>
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Boo.Lang">

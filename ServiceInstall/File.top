@@ -5,20 +5,33 @@
       <Directory Id="ProgramFilesFolder" Name="PFiles">
         <Directory Id="IdConn" Name="Identity Connectors">
           <Directory Id="INSTALLDIR" Name="Connector Server">
-            <Directory Id="LEGALDIR" Name="legal-notices"/>
+            <Directory Id="LEGALDIR" Name="legal-notices" />
           </Directory>
         </Directory>
       </Directory>
     </DirectoryRef>
   </Fragment>
   <Fragment>
+    <ComponentGroup Id="LegacyConnectorServerComponents" Directory="INSTALLDIR">
+      <Component Id="LegacyConnectorServerService"  Guid="8B1F7E82-46D7-4F88-A1FA-44FCBF7E685F" DiskId="1">
+        <CreateFolder Directory="INSTALLDIR" />
+        <ServiceInstall Id="LegacyConnectorServerServiceInstall" Name="LegacyConnectorServerService"
+                        DisplayName="OpenICF Legacy Connector Server" Type="ownProcess" Start="demand"
+                        ErrorControl="normal" Description="OpenICF Legacy Connector Server" Account="[SERVICEACCOUNT]"
+                        Password="[SERVICEPASSWORD]" Arguments="/service">
+        </ServiceInstall>
+        <ServiceControl Id="LegacyConnectorServerService" Name="LegacyConnectorServerService" Start="install" Stop="both"
+                        Wait="yes" Remove="uninstall" />
+      </Component>
+    </ComponentGroup>
     <ComponentGroup Id="ConnectorServerComponents" Directory="INSTALLDIR">
       <Component Id="ConnectorServerService" Guid="8B1F7E82-46D7-4F88-A1FA-44FCBF7E684F" DiskId="1">
         <ServiceInstall Id="ConnectorServerServiceInstall" Name="ConnectorServerService"
-          DisplayName="OpenICF Connector Server" Type="ownProcess" Start="auto"
-          ErrorControl="normal" Description="OpenICF Connector Server" Account="[SERVICEACCOUNT]"
-          Password="[SERVICEPASSWORD]" Arguments="/service"> </ServiceInstall>
+                        DisplayName="OpenICF Connector Server" Type="ownProcess" Start="auto"
+                        ErrorControl="normal" Description="OpenICF Connector Server" Account="[SERVICEACCOUNT]"
+                        Password="[SERVICEPASSWORD]" Arguments="/service" Vital="yes">
+        </ServiceInstall>
         <ServiceControl Id="StartConnectorServerService" Name="ConnectorServerService"
-          Start="install" Wait="no"/>
+                        Start="install" Wait="no" />
         <ServiceControl Id="StopConnectorServerService" Name="ConnectorServerService" Stop="both"
-          Wait="yes" Remove="uninstall"/>
+                        Wait="yes" Remove="uninstall" />

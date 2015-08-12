@@ -21,18 +21,19 @@
   "Portions Copyrighted [year] [name of copyright owner]"
   ====================
 -->
-<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="12.0">
   <PropertyGroup>
     <ProjectGuid>{A9D6374A-D51F-4FA3-8C02-5B1D23FAA82E}</ProjectGuid>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Sun.OpenConnectors.Framework.Service</RootNamespace>
+    <RootNamespace>Org.IdentityConnectors.Framework.Service</RootNamespace>
     <AssemblyName>ConnectorServer</AssemblyName>
-    <ProductName>Service</ProductName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <ProductName>Open Connectors Framework - Connector Server Service</ProductName>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <NoStdLib>False</NoStdLib>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <ErrorReport>prompt</ErrorReport>
@@ -66,6 +67,15 @@
     <BaseAddress>4194304</BaseAddress>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <FileAlignment>4096</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>FR_ICF_sq_med.ico</ApplicationIcon>
   </PropertyGroup>
   <Import Project="$(MSBuildProjectDirectory)\..\Framework.targets" />
   <ItemGroup>
@@ -104,10 +114,6 @@
       <SubType>Designer</SubType>
     </None>
   </ItemGroup>
-  <Target Name="Clean">
-    <Delete Files="AssemblyInfo.cs;version.txt" />
-    <RemoveDir Directories="obj;bin" />
-  </Target>
   <ItemGroup>
     <ProjectReference Include="..\Common\Common.csproj">
       <Project>{F140E8DA-52B4-4159-992A-9DA10EA8EEFB}</Project>
@@ -128,4 +134,11 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="FR_ICF_sq_med.ico" />
+  </ItemGroup> 
+  <Target Name="Clean">
+    <Delete Files="AssemblyInfo.cs;version.txt" />
+    <RemoveDir Directories="obj;bin" />
+  </Target>
 </Project>

@@ -19,7 +19,7 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2012-2014 ForgeRock AS.
+ * Portions Copyrighted 2012-2015 ForgeRock AS.
  */
 using System;
 using System.Collections.Concurrent;
@@ -864,13 +864,15 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
              .Subscribe(objectClass, token, handler, operationOptions);
         }
 
+        protected const String Msg = "Operation ''{0}'' not supported.";
+
         private APIOperation GetOperationCheckSupported(SafeType<APIOperation> api)
         {
             // check if this operation is supported.
             if (!SupportedOperations.Contains(api))
             {
-                String MSG = "Operation ''{0}'' not supported.";
-                String str = String.Format(MSG, api);
+                
+                String str = String.Format(Msg, api);
                 throw new InvalidOperationException(str);
             }
             return GetOperationImplementation(api);

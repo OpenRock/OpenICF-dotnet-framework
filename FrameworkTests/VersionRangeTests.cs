@@ -1,7 +1,7 @@
 /*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
- * Copyright (c) 2013 ForgeRock AS. All Rights Reserved
+ * Copyright (c) 2013-2015 ForgeRock AS. All Rights Reserved
  *
  * The contents of this file are subject to the terms
  * of the Common Development and Distribution License
@@ -21,17 +21,17 @@
  * your own identifying information:
  * "Portions Copyrighted [year] [name of copyright owner]"
  */
+
 using System;
 using NUnit.Framework;
+using Org.IdentityConnectors.Framework.Api;
 using Org.IdentityConnectors.Framework.Common;
 
 namespace FrameworkTests
 {
-
     [TestFixture]
     public class VersionRangeTests
     {
-
         [Test]
         public virtual void TestIsInRange()
         {
@@ -125,6 +125,71 @@ namespace FrameworkTests
             VersionRange range2 = VersionRange.Parse(range1.ToString());
             Assert.IsTrue(range1.Equals(range2));
         }
-    }
 
+        [Test]
+        public virtual void TestConnectorKeysInRange()
+        {
+            ConnectorKeyRange rS1 =
+                ConnectorKeyRange.NewBuilder()
+                    .SetBundleName("B")
+                    .SetConnectorName("C")
+                    .SetBundleVersion("1.1.0.0-SNAPSHOT")
+                    .Build();
+            ConnectorKeyRange r1 =
+                ConnectorKeyRange.NewBuilder()
+                    .SetBundleName("B")
+                    .SetConnectorName("C")
+                    .SetBundleVersion("1.1.0.0-SNAPSHOT")
+                    .Build();
+
+            ConnectorKeyRange rS2 =
+                ConnectorKeyRange.NewBuilder()
+                    .SetBundleName("B")
+                    .SetConnectorName("C")
+                    .SetBundleVersion("[1.1.0.0,1.2-SNAPSHOT]")
+                    .Build();
+            ConnectorKeyRange r2 =
+                ConnectorKeyRange.NewBuilder()
+                    .SetBundleName("B")
+                    .SetConnectorName("C")
+                    .SetBundleVersion("[1.1.0.0,1.2]")
+                    .Build();
+
+            ConnectorKey kS1 = new ConnectorKey("B", "1.1.0.0-SNAPSHOT", "C");
+            ConnectorKey k1 = new ConnectorKey("B", "1.1.0.0", "C");
+            ConnectorKey kS2 = new ConnectorKey("B", "1.2.0.0-SNAPSHOT", "C");
+            ConnectorKey k2 = new ConnectorKey("B", "1.2.0.0", "C");
+
+
+            Assert.IsTrue(rS1.BundleVersionRange.Exact);
+            Assert.IsTrue(r1.BundleVersionRange.Exact);
+            Assert.IsFalse(rS2.BundleVersionRange.Exact);
+            Assert.IsFalse(r2.BundleVersionRange.Exact);
+
+
+            Assert.IsTrue(rS1.IsInRange(kS1));
+            Assert.IsTrue(rS1.IsInRange(k1));
+            Assert.IsTrue(r1.IsInRange(kS1));
+            Assert.IsTrue(r1.IsInRange(k1));
+
+            //
+
+            Assert.IsFalse(rS1.IsInRange(kS2));
+            Assert.IsFalse(rS1.IsInRange(k2));
+            Assert.IsFalse(r1.IsInRange(kS2));
+            Assert.IsFalse(r1.IsInRange(k2));
+
+            //
+
+            Assert.IsTrue(rS2.IsInRange(kS1));
+            Assert.IsTrue(rS2.IsInRange(k1));
+            Assert.IsTrue(r2.IsInRange(kS1));
+            Assert.IsTrue(r2.IsInRange(k1));
+
+            Assert.IsTrue(rS2.IsInRange(kS2));
+            Assert.IsTrue(rS2.IsInRange(k2));
+            Assert.IsTrue(r2.IsInRange(kS2));
+            Assert.IsTrue(r2.IsInRange(k2));
+        }
+    }
 }

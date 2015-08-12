@@ -31,7 +31,7 @@ using System.Security.Cryptography;
 using System.ServiceProcess;
 using Org.IdentityConnectors.Common.Security;
 using System.Security.Cryptography.X509Certificates;
-using Sun.OpenConnectors.Framework.Service.Properties;
+using Org.IdentityConnectors.Framework.Service.Properties;
 
 namespace Org.IdentityConnectors.Framework.Service
 {

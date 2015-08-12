@@ -37,7 +37,9 @@ using Org.IdentityConnectors.Framework.Common.Objects.Filters;
 
 namespace Org.IdentityConnectors.Framework.Common
 {
+
     #region ConnectorKeyRange
+
     /// <summary>
     /// A ConnectorKeyRange identifies a range of ConnectorKeys.
     /// 
@@ -49,37 +51,31 @@ namespace Org.IdentityConnectors.Framework.Common
     /// <remarks>since 1.5</remarks>
     public sealed class ConnectorKeyRange
     {
-        private readonly string _bundleName;
+        private readonly String _bundleName;
         private readonly VersionRange _bundleVersionRange;
-        private readonly string _connectorName;
+        private readonly String _exactVersion;
+        private readonly String _connectorName;
 
         public string BundleName
         {
-            get
-            {
-                return _bundleName;
-            }
+            get { return _bundleName; }
         }
 
         public VersionRange BundleVersionRange
         {
-            get
-            {
-                return _bundleVersionRange;
-            }
+            get { return _bundleVersionRange; }
         }
 
         public string ConnectorName
         {
-            get
-            {
-                return _connectorName;
-            }
+            get { return _connectorName; }
         }
 
         public bool IsInRange(ConnectorKey connectorKey)
         {
-            return !_bundleVersionRange.Empty && _bundleName.Equals(connectorKey.BundleName) && _connectorName.Equals(connectorKey.ConnectorName) && _bundleVersionRange.IsInRange(Version.Parse(connectorKey.BundleVersion));
+            return !_bundleVersionRange.Empty && _bundleName.Equals(connectorKey.BundleName) &&
+                   _connectorName.Equals(connectorKey.ConnectorName) &&
+                   _bundleVersionRange.IsInRange(Version.Parse(connectorKey.BundleVersion));
         }
 
         public ConnectorKey ExactConnectorKey
@@ -88,19 +84,17 @@ namespace Org.IdentityConnectors.Framework.Common
             {
                 if (_bundleVersionRange.Exact)
                 {
-                    return new ConnectorKey(_bundleName, _bundleVersionRange.Floor.ToString(), _connectorName);
+                    return new ConnectorKey(_bundleName, _exactVersion, _connectorName);
                 }
-                else
-                {
-                    throw new ArgumentException("BundleVersion is not exact version");
-                }
+                throw new ArgumentException("BundleVersion is not exact version");
             }
         }
 
-        private ConnectorKeyRange(string bundleName, VersionRange bundleVersionRange, string connectorName)
+        private ConnectorKeyRange(String bundleName, String bundleVersion, String connectorName)
         {
             _bundleName = bundleName;
-            _bundleVersionRange = bundleVersionRange;
+            _exactVersion = bundleVersion;
+            _bundleVersionRange = VersionRange.Parse(_exactVersion);
             _connectorName = connectorName;
         }
 
@@ -115,16 +109,17 @@ namespace Org.IdentityConnectors.Framework.Common
                 return false;
             }
 
-            ConnectorKeyRange that = (ConnectorKeyRange)o;
+            ConnectorKeyRange that = (ConnectorKeyRange) o;
 
-            return _bundleName.Equals(that._bundleName) && _bundleVersionRange.Equals(that._bundleVersionRange) && _connectorName.Equals(that._connectorName);
+            return _bundleName.Equals(that._bundleName) && _bundleVersionRange.Equals(that._bundleVersionRange) &&
+                   _connectorName.Equals(that._connectorName);
         }
 
         public override int GetHashCode()
         {
             int result = _bundleName.GetHashCode();
-            result = 31 * result + _bundleVersionRange.GetHashCode();
-            result = 31 * result + _connectorName.GetHashCode();
+            result = 31*result + _bundleVersionRange.GetHashCode();
+            result = 31*result + _connectorName.GetHashCode();
             return result;
         }
 
@@ -159,10 +154,11 @@ namespace Org.IdentityConnectors.Framework.Common
 
             public virtual ConnectorKeyRange Build()
             {
-                return new ConnectorKeyRange(_bundleName, VersionRange.Parse(_bundleVersion), _connectorName);
+                return new ConnectorKeyRange(_bundleName, _bundleVersion, _connectorName);
             }
         }
     }
+
     #endregion
 
     #region FrameworkInternalBridge
@@ -840,16 +836,16 @@ namespace Org.IdentityConnectors.Framework.Common
             {
                 return false;
             }
-            if (floorVersion.CompareTo(version) >= (isFloorInclusive ? 1 : 0))
-            {
-                return false;
-            }
-            if (ceilingVersion == null)
+            int c = floorVersion.CompareTo(version);
+            if (c == 0 && isFloorInclusive)
             {
                 return true;
             }
-            return ceilingVersion.CompareTo(version) >= (isCeilingInclusive ? 0 : 1);
-
+            if (c < 0 && ceilingVersion != null)
+            {
+                return ceilingVersion.CompareTo(version) >= (isCeilingInclusive ? 0 : 1);
+            }
+            return false;
         }
 
         /// <summary>

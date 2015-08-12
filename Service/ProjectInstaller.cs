@@ -37,9 +37,9 @@ namespace Org.IdentityConnectors.Framework.Service
 	    
 	    static ProjectInstaller()
 	    {
-            ServiceName = "ConnectorServerService";
-            DisplayName = "OpenICF Connector Server .Net";
-            Description = "OpenICF Connector Server .Net";
+            ServiceName = "LegacyConnectorServerService";
+            DisplayName = "OpenICF Legacy Connector Server";
+            Description = "OpenICF Legacy Connector Server";
 	    }
 	    
 		private ServiceProcessInstaller serviceProcessInstaller;

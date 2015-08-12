@@ -1,5 +1,8 @@
-<?xml version="1.0"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:ui="http://schemas.microsoft.com/wix/UIExtension"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension"
+     xmlns:netfx="http://schemas.microsoft.com/wix/NetFxExtension">
 	<Product Id="*"
 		Name="OpenICF Connector Server"
 		Language="1033"
@@ -21,11 +24,20 @@
 		
 		<Feature Id="Complete"
 		         Title="Service"
-		         Description="Connector Server Service"
+		         Description="OpenICF Connector Server Service"
+             AllowAdvertise="no"
+             Display='expand'
 		         Level="1"
 		         ConfigurableDirectory="INSTALLDIR">
-		         <ComponentGroupRef Id="ConnectorServerComponents" />
-				 <ComponentGroupRef Id="LegalFilesComponents" />
+      <ComponentGroupRef Id="ConnectorServerComponents" />
+      <ComponentGroupRef Id="LegalFilesComponents" />
+      <Feature Id="Legacy"
+          Title="Legacy Service"
+          Description="Legacy Connector Server Service"
+          Level="0"
+          ConfigurableDirectory="INSTALLDIR">
+        <ComponentGroupRef Id="LegacyConnectorServerComponents" />
+      </Feature>
 		</Feature>
 		
 		<!-- 
@@ -45,7 +57,26 @@
 			Use WixUI_Mondo when you have some of your product's features 
 			are not installed by default and there is a meaningful 
 			difference between typical and complete installs
-		-->
+		-->  
+		<!-- UI information-->
+	    <Property Id="ARPPRODUCTICON" Value="_FileID_Icon.ico" />
+	    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+	    <Property Id="WIXUI_ARPNOMODIFY" Value="yes" Secure="yes" />
+	    <!--UIRef Id="WixUI_InstallDir" />
+	    <UIRef Id="WixUI_ErrorProgressText" /-->
+
+	    <!-- WixUILicenseRtf: License file. -->
+	    <WixVariable Id="WixUILicenseRtf" Value="Resources\product_License.rtf" />
+	    <!-- WixUIBannerBmp: 493 by 58 pixels, this bitmap will appear at the top of all but the first page of the installer. -->
+	    <WixVariable Id="WixUIBannerBmp" Value="Resources\setupBanner.bmp" />
+	    <!-- WixUIDialogBmp: 493 by 312 pixels, this bitmap will appear on the first page of the installer. -->
+	    <WixVariable Id="WixUIDialogBmp" Value="Resources\setupDialog.bmp" />
+	    <Icon Id="_FileID_Icon.ico" SourceFile="Resources\FR_ICF_sq_med.ico"/>
+		
+		<PropertyRef Id="NETFRAMEWORK45" />
+		<Condition Message="This setup requires the .NET Framework 4.5 to be installed.">
+		   <![CDATA[NETFRAMEWORK45]]>
+		</Condition>
 		<UI>
 		<UIRef Id="WixUI_Common"/>
 		<TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
@@ -99,7 +130,7 @@
                 <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
                 <Control Id="Description" Type="Text" X="135" Y="80" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="!(loc.WelcomeDlgDescription)" />
                 <Control Id="SeparationLine" Type="Line" X="135" Y="140" Width="220" Height="0" />
-                <Control Id="Copyright" Type="Text" X="135" Y="150" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="Portions Copyrighted (c) 2011-2014 ForgeRock AS." />
+                <Control Id="Copyright" Type="Text" X="135" Y="150" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="Portions Copyrighted (c) 2011-2015 ForgeRock AS." />
                 <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="!(loc.WelcomeDlgTitle)" />
             </Dialog>
             <InstallUISequence>
