@@ -271,7 +271,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public void TestValidate()
         {
             IAsyncConnectorInfoManager manager = ConnectorInfoManager;
-            var task = manager.FindConnectorInfoAsync(TestConnectorKey);
+            var task = manager.FindConnectorInfoAsync(TestStatefulConnectorKey);
             Assert.IsTrue(task.Wait(TimeSpan.FromMinutes(5)));
 
             ConnectorInfo info = task.Result;
