@@ -29,6 +29,7 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Reactive.Linq;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.Threading;
@@ -41,10 +42,10 @@ using Org.IdentityConnectors.Framework.Api;
 using Org.IdentityConnectors.Framework.Common.Objects;
 using Org.IdentityConnectors.Framework.Common.Objects.Filters;
 using Org.IdentityConnectors.Framework.Impl.Api.Remote;
+using Org.IdentityConnectors.Test.Common;
 
 namespace Org.ForgeRock.OpenICF.Framework.Remote
 {
-
     [TestFixture]
     [Explicit]
     public class ExplicitServerTest : ServerTestBase
@@ -154,7 +155,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                     Trace.TraceInformation("Found Connector {0}", connectorInfo.ConnectorKey);
                 }
 
-                 int freePort = FreePort;
+                int freePort = FreePort;
                 EndpointAddress serviceAddress =
                     new EndpointAddress(String.Format("http://localhost:{0}/openicf", freePort));
 
@@ -320,6 +321,59 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             {
                 TraceUtil.TraceException("Test Exception", e);
                 Assert.AreEqual("test failed en", e.Message);
+            }
+        }
+
+        [Test]
+        public virtual void TestConfigurationUpdate()
+        {
+            IAsyncConnectorInfoManager manager = ConnectorInfoManager;
+            var taskA = manager.FindConnectorInfoAsync(TestStatefulConnectorKey);
+            var taskB = manager.FindConnectorInfoAsync(TestPoolableStatefulConnectorKey);
+            Assert.IsTrue(taskA.Wait(TimeSpan.FromMinutes(5)));
+            Assert.IsTrue(taskB.Wait(TimeSpan.FromMinutes(5)));
+
+            ConnectorInfo[] infos =
+            {
+                taskA.Result,
+                taskB.Result
+            };
+            foreach (ConnectorInfo info in infos)
+            {
+                APIConfiguration api = info.CreateDefaultAPIConfiguration();
+
+                ConfigurationProperties props = api.ConfigurationProperties;
+                props.GetProperty("randomString").Value = StringUtil.RandomString();
+                api.ProducerBufferSize = 0;
+
+                var listener = new ConfigurationPropertyChangeListener();
+                api.ChangeListener = listener;
+
+                ConnectorFacade facade = ConnectorFramework.NewInstance(api);
+
+                ScriptContextBuilder builder = new ScriptContextBuilder();
+                builder.ScriptLanguage = "Boo";
+
+                builder.ScriptText = "connector.update()";
+                facade.RunScriptOnConnector(builder.Build(), null);
+
+                for (int i = 0; (i < 5 && null == listener.Changes); i++)
+                {
+                    Thread.Sleep(1000);
+                }
+                Assert.NotNull(listener.Changes);
+                Assert.AreEqual(listener.Changes.Count, 1);
+                Assert.AreEqual(listener.Changes.First(), "change");
+            }
+        }
+
+        internal class ConfigurationPropertyChangeListener : IConfigurationPropertyChangeListener
+        {
+            internal IList<ConfigurationProperty> Changes { get; set; }
+
+            public virtual void ConfigurationPropertyChange(IList<ConfigurationProperty> changes)
+            {
+                Changes = changes;
             }
         }
 
@@ -509,6 +563,71 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             Assert.AreEqual(o, "test");
             o = facade.RunScriptOnResource(contextBuilder.Build(), null);
             Assert.AreEqual(o, "test");
+        }
+
+        [Test]
+        public void TestSubscriptionOperation()
+        {
+            IAsyncConnectorInfoManager manager = ConnectorInfoManager;
+            var task = manager.FindConnectorInfoAsync(TestStatefulConnectorKey);
+            Assert.IsTrue(task.Wait(TimeSpan.FromMinutes(5)));
+
+            ConnectorFacade facade = ConnectorFacade;
+            ToListResultsHandler handler = new ToListResultsHandler();
+            CountdownEvent cde = new CountdownEvent(1);
+            var localFacade = facade;
+            var connectorObjectObservable =
+                Observable.Create<ConnectorObject>(o => localFacade.Subscribe(ObjectClass.ACCOUNT, null, o, null));
+
+
+            var subscription = connectorObjectObservable.Subscribe(
+                co =>
+                {
+                    Console.WriteLine(@"Connector Event received:{0}", co.Uid.GetUidValue());
+                    handler.ResultsHandler.Handle(co);
+                },
+                ex =>
+                {
+                    cde.Signal();
+                    Assert.AreEqual(handler.Objects.Count, 10, "Uncompleted  subscription");
+                });
+
+
+            cde.Wait(new TimeSpan(0, 0, 25));
+            subscription.Dispose();
+            Assert.AreEqual(10, handler.Objects.Count);
+
+            handler = new ToListResultsHandler();
+            cde = new CountdownEvent(1);
+
+            var syncDeltaObservable =
+                Observable.Create<SyncDelta>(o => localFacade.Subscribe(ObjectClass.ACCOUNT, null, o, null));
+
+            IDisposable[] subscriptions = new IDisposable[1];
+            subscriptions[0] = syncDeltaObservable.Subscribe(
+                delta =>
+                {
+                    Console.WriteLine(@"Sync Event received:{0}", delta.Token.Value);
+                    if (((int?) delta.Token.Value) > 2)
+                    {
+                        subscriptions[0].Dispose();
+                        cde.Signal();
+                    }
+                    handler.ResultsHandler.Handle(delta.Object);
+                },
+                ex =>
+                {
+                    cde.Signal();
+                    Assert.Fail("Failed Subscription {0}", ex);
+                });
+
+            cde.Wait(new TimeSpan(0, 0, 25));
+            for (int i = 0; i < 5 && !(handler.Objects.Count > 2); i++)
+            {
+                Console.WriteLine(@"Wait for result handler thread to complete: {0}", i);
+                Thread.Sleep(200); // Wait to complete all other threads
+            }
+            Assert.IsTrue(handler.Objects.Count < 10 && handler.Objects.Count > 2);
         }
     }
 }

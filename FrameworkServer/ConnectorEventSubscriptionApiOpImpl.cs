@@ -144,10 +144,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                     return new InternalRequest(context, requestId, completionCallback, builder, _handler,
                         CancellationToken);
                 }
-                else
-                {
                     return null;
-                }
+                
             }
 
             protected internal override OperationRequest CreateOperationRequest(
@@ -184,11 +182,9 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 {
                     return message.ConnectorEventSubscriptionOpResponse;
                 }
-                else
-                {
                     Trace.TraceInformation(OperationExpectsMessage, RequestId, "ConnectorEventSubscriptionOpResponse");
                     return null;
-                }
+                
             }
 
             protected internal override void HandleOperationResponseMessages(WebSocketConnectionHolder sourceConnection,
@@ -258,6 +254,18 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                             ConnectorEventSubscriptionOpResponse = result
                         }
                     };
+            }
+
+            public override void Execute(ConnectorFacade connectorFacade)
+            {
+                try
+                {
+                    TryHandleResult(ExecuteOperation(connectorFacade, _requestMessage));
+                }
+                catch (Exception error)
+                {
+                    HandleError(error);
+                }
             }
 
             protected internal override ConnectorEventSubscriptionOpResponse ExecuteOperation(
@@ -531,6 +539,18 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                         SyncEventSubscriptionOpResponse = result
                     }
                 };
+            }
+
+            public override void Execute(ConnectorFacade connectorFacade)
+            {
+                try
+                {
+                    TryHandleResult(ExecuteOperation(connectorFacade, _requestMessage));
+                }
+                catch (Exception error)
+                {
+                    HandleError(error);
+                }
             }
 
             protected internal override SyncEventSubscriptionOpResponse ExecuteOperation(

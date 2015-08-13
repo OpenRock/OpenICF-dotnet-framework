@@ -3216,6 +3216,16 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
         /// <summary>
         /// Create a builder with an empty set of options.
         /// </summary>
+        /// <returns>new builder</returns>
+        /// <remarks>Since 1.5</remarks>
+        public static OperationOptionsBuilder Create()
+        {
+            return new OperationOptionsBuilder();
+        }
+
+        /// <summary>
+        /// Create a builder with an empty set of options.
+        /// </summary>
         public OperationOptionsBuilder()
         {
             _options = new Dictionary<String, Object>();
@@ -3242,7 +3252,7 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
         /// <param name="value">The value of the option. Must be one of the types that
         /// we can serialize.
         /// See <see cref="Org.IdentityConnectors.Framework.Common.Serializer.ObjectSerializerFactory" /> for a list of supported types.</param>
-        public void SetOption(String name, Object value)
+        public OperationOptionsBuilder SetOption(String name, Object value)
         {
             if (name == null)
             {
@@ -3251,6 +3261,7 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
             //don't validate value here - we do that implicitly when
             //we clone in the constructor of OperationOptions
             _options[name] = value;
+            return this;
         }
 
         /// <summary>
@@ -3324,7 +3335,7 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
         {
             set
             {
-                Assertions.NullCheck(value, "scope");
+                Assertions.NullCheck(value, "Scope");
                 _options[OperationOptions.OP_SCOPE] = value;
             }
         }
@@ -3332,13 +3343,13 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
         /// <summary>
         /// Convenience method to set <see cref="OperationOptions.OP_CONTAINER" />
         /// </summary>
-        /// <param name="container">The container. May not be null.</param>
+        /// <param name="Container">The container. May not be null.</param>
         /// <returns>A this reference to allow chaining</returns>
         public QualifiedUid Container
         {
             set
             {
-                Assertions.NullCheck(value, "container");
+                Assertions.NullCheck(value, "Container");
                 _options[OperationOptions.OP_CONTAINER] = value;
             }
         }

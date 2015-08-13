@@ -1,4 +1,4 @@
-﻿/*
+/*
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
  *
  * Copyright (c) 2015 ForgeRock AS. All rights reserved.
@@ -369,6 +369,7 @@ namespace Org.ForgeRock.OpenICF.Common.RPC
     {
         public abstract class AsyncMessageQueueRecord : IDisposable
         {
+#if DEBUG 
             private static Int32 _counter;
             private Int32 _id;
 
@@ -383,7 +384,7 @@ namespace Org.ForgeRock.OpenICF.Common.RPC
                     return _id;
                 }
             }
-
+#endif
             private Int32 _busy;
             private bool _canFail;
             private readonly HashSet<TH> _references = new HashSet<TH>();
@@ -413,7 +414,9 @@ namespace Org.ForgeRock.OpenICF.Common.RPC
 
             public async Task<TH> SendAsync(TimeSpan timeout)
             {
+#if DEBUG
                 Trace.TraceInformation("Sending Async Message {0}", Id);
+#endif
                 _canFail = true;
                 if (!_completionHandler.Task.IsCompleted)
                 {
@@ -450,13 +453,17 @@ namespace Org.ForgeRock.OpenICF.Common.RPC
                     {
                         if (_references.Remove(connection))
                         {
-                            Trace.TraceInformation("Sending message:{0} over connection:{1}:{2} bussy:{3}", Id,
+#if DEBUG
+                            Debug.WriteLine("Sending message:{0} over connection:{1}:{2} bussy:{3}", Id,
                                 connection.Id, connection.GetType().FullName, _busy);
+#endif
                             await DoSend(connection);
                             //Sent successfully
                             NotifyCompleteAndRecycle(connection);
-                            Trace.TraceInformation("Sent message:{0} over connection:{1} completed:{2}", Id,
+#if DEBUG
+                            Debug.WriteLine("Sent message:{0} over connection:{1} completed:{2}", Id,
                                 connection.Id, _completionHandler.Task.IsCompleted);
+#endif
                         }
                     }
                     catch (Exception e)
@@ -684,7 +691,9 @@ namespace Org.ForgeRock.OpenICF.Common.RPC
         where TH : IRemoteConnectionHolder<TG, TH, TP>
         where TP : IRemoteConnectionContext<TG, TH, TP>
     {
+#if DEBUG
         Int32 Id { get; }
+#endif
 
         TP RemoteConnectionContext { get; }
 
@@ -882,6 +891,7 @@ namespace Org.ForgeRock.OpenICF.Common.RPC
                                 if (null == _promise)
                                 {
                                     _promise = new TaskCompletionSource<TV>();
+                                    // ReSharper disable once ImpureMethodCallOnReadonlyValueField
                                     cancellationTokenRegistration = _cancellationToken.Register(promise =>
                                     {
                                         var p = promise as TaskCompletionSource<TV>;
@@ -891,7 +901,8 @@ namespace Org.ForgeRock.OpenICF.Common.RPC
                                         }
                                         Dispose();
                                     }, _promise);
-                                    _promise.Task.ContinueWith(x => { _completionCallback(this); }).ConfigureAwait(false);
+                                    _promise.Task.ContinueWith(x => { _completionCallback(this); })
+                                        .ConfigureAwait(false);
                                     if (_cancellationToken.IsCancellationRequested)
                                     {
                                         _promise.SetCanceled();

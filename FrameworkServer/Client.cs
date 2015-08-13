@@ -108,7 +108,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             get { return this; }
         }
 
-        protected internal override void onNewWebSocketConnectionGroup(WebSocketConnectionGroup connectionGroup)
+        protected override void OnNewWebSocketConnectionGroup(WebSocketConnectionGroup connectionGroup)
         {
             Trace.TraceInformation("Activating new ConnectionGroup {0}:{1}", Identity.Name,
                 connectionGroup.RemoteSessionId);
@@ -124,7 +124,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 _parent = parent;
             }
 
-            protected internal override
+            protected override
                 IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 MessageDistributor
             {

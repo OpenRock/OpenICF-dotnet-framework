@@ -657,6 +657,13 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local.Operations
 
         public ISubscription Subscribe(ObjectClass objectClass, Filter eventFilter, IObserver<ConnectorObject> handler, OperationOptions operationOptions)
         {
+            Assertions.NullCheck(objectClass, "objectClass");
+            Assertions.NullCheck(handler, "handler");
+            //convert null into empty
+            if (operationOptions == null)
+            {
+                operationOptions = new OperationOptionsBuilder().Build();
+            }
             IConnectorEventSubscriptionOp operation = ((IConnectorEventSubscriptionOp)GetConnector());
             InternalObserver<ConnectorObject> observer = new InternalObserver<ConnectorObject>(handler, ReferenceCounter);
             try
@@ -688,6 +695,14 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local.Operations
 
         public ISubscription Subscribe(ObjectClass objectClass, SyncToken token, IObserver<SyncDelta> handler, OperationOptions operationOptions)
         {
+            Assertions.NullCheck(objectClass, "objectClass");
+            Assertions.NullCheck(handler, "handler");
+            //convert null into empty
+            if (operationOptions == null)
+            {
+                operationOptions = new OperationOptionsBuilder().Build();
+            }
+
             ISyncEventSubscriptionOp operation = ((ISyncEventSubscriptionOp)GetConnector());
             InternalObserver<SyncDelta> observer = new InternalObserver<SyncDelta>(handler, ReferenceCounter);
             try

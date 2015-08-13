@@ -49,7 +49,8 @@ namespace Org.ForgeRock.OpenICF.Framework
     {
         public const string RemoteLibraryMissingException = "Remote Connection Library is not initialised";
 
-        private RemoteConnectionInfoManagerFactory _remoteConnectionInfoManagerFactory = null;
+        private RemoteConnectionInfoManagerFactory _remoteConnectionInfoManagerFactory;
+        private ConnectionManagerConfig _connectionManagerConfig = new ConnectionManagerConfig();
 
         private Int32 _isRunning = 1;
 
@@ -91,7 +92,7 @@ namespace Org.ForgeRock.OpenICF.Framework
         ////
         public ConnectorFacade NewInstance(APIConfiguration config)
         {
-            ConnectorFacade ret = null;
+            ConnectorFacade ret;
             APIConfigurationImpl impl = (APIConfigurationImpl) config;
             AbstractConnectorInfo connectorInfo = impl.ConnectorInfo;
             if (connectorInfo is LocalConnectorInfoImpl)
@@ -105,8 +106,8 @@ namespace Org.ForgeRock.OpenICF.Framework
                 catch (Exception ex)
                 {
                     string connector = impl.ConnectorInfo.ConnectorKey.ToString();
-                    //connector, config
-                    TraceUtil.TraceException("Failed to create new connector facade: {0}, {1}", ex);
+                    Debug.WriteLine("Failed to create new connector facade: {0}, {1}", connector, config);
+                    TraceUtil.TraceException("Failed to create new connector facade", ex);
                     throw;
                 }
             }
@@ -125,22 +126,22 @@ namespace Org.ForgeRock.OpenICF.Framework
             return ret;
         }
 
-        private readonly ConcurrentDictionary<String, ConnectorFacade> MANAGED_FACADE_CACHE =
+        private readonly ConcurrentDictionary<String, ConnectorFacade> _managedFacadeCache =
             new ConcurrentDictionary<String, ConnectorFacade>();
 
-        private Timer _scheduledManagedFacadeCacheTimer = null;
+        private Timer _scheduledManagedFacadeCacheTimer;
 
-        public virtual ConnectorFacade newManagedInstance(ConnectorInfo connectorInfo, string config)
+        public virtual ConnectorFacade NewManagedInstance(ConnectorInfo connectorInfo, string config)
         {
-            ConnectorFacade facade = null;
-            MANAGED_FACADE_CACHE.TryGetValue(config, out facade);
+            ConnectorFacade facade;
+            _managedFacadeCache.TryGetValue(config, out facade);
             if (null == facade)
             {
                 // new ConnectorFacade creation must remain cheap operation
                 facade = NewInstance(connectorInfo, config);
                 if (facade is LocalConnectorFacadeImpl)
                 {
-                    ConnectorFacade ret = MANAGED_FACADE_CACHE.GetOrAdd(facade.ConnectorFacadeKey, facade);
+                    ConnectorFacade ret = _managedFacadeCache.GetOrAdd(facade.ConnectorFacadeKey, facade);
                     if (null != ret)
                     {
                         Trace.TraceInformation("ConnectorFacade found in cache");
@@ -148,20 +149,20 @@ namespace Org.ForgeRock.OpenICF.Framework
                     }
                     else
                     {
-                        lock (MANAGED_FACADE_CACHE)
+                        lock (_managedFacadeCache)
                         {
                             if (null == _scheduledManagedFacadeCacheTimer)
                             {
                                 _scheduledManagedFacadeCacheTimer = new Timer(state =>
                                 {
-                                    foreach (var connectorFacade in MANAGED_FACADE_CACHE)
+                                    foreach (var connectorFacade in _managedFacadeCache)
                                     {
                                         LocalConnectorFacadeImpl value =
                                             connectorFacade.Value as LocalConnectorFacadeImpl;
                                         if (null != value && value.IsUnusedFor(TimeSpan.FromHours(2)))
                                         {
                                             ConnectorFacade ignore;
-                                            MANAGED_FACADE_CACHE.TryRemove(connectorFacade.Key, out ignore);
+                                            _managedFacadeCache.TryRemove(connectorFacade.Key, out ignore);
                                             if (ignore == value)
                                             {
                                                 Trace.TraceInformation(
@@ -170,7 +171,7 @@ namespace Org.ForgeRock.OpenICF.Framework
                                             }
                                         }
                                     }
-                                }, MANAGED_FACADE_CACHE, TimeSpan.FromHours(2), TimeSpan.FromHours(2));
+                                }, _managedFacadeCache, TimeSpan.FromHours(2), TimeSpan.FromHours(2));
                             }
                         }
                     }
@@ -181,7 +182,7 @@ namespace Org.ForgeRock.OpenICF.Framework
 
         public ConnectorFacade NewInstance(ConnectorInfo connectorInfo, string config)
         {
-            ConnectorFacade ret = null;
+            ConnectorFacade ret;
             if (connectorInfo is LocalConnectorInfoImpl)
             {
                 try
@@ -189,10 +190,10 @@ namespace Org.ForgeRock.OpenICF.Framework
                     // create a new Provisioner.
                     ret = new LocalConnectorFacadeImpl((LocalConnectorInfoImpl) connectorInfo, config);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    string connector = connectorInfo.ConnectorKey.ToString();
-                    //Trace.TraceError(ex, "Failed to create new connector facade: {0}, {1}", connector, config);
+                    Debug.WriteLine("Failed to create new connector facade: {0}, {1}", connectorInfo.ConnectorKey,
+                        config);
                     throw;
                 }
             }
@@ -232,7 +233,7 @@ namespace Org.ForgeRock.OpenICF.Framework
             String connectorBundleParentClassLoader)
         {
             String key = connectorBundleParentClassLoader ?? "default";
-            AsyncLocalConnectorInfoManager manager = null;
+            AsyncLocalConnectorInfoManager manager;
             _localConnectorInfoManagerCache.TryGetValue(key, out manager);
             return manager ?? (_localConnectorInfoManagerCache.GetOrAdd(key, new AsyncLocalConnectorInfoManager()));
         }
@@ -300,8 +301,7 @@ namespace Org.ForgeRock.OpenICF.Framework
             return null;
         }
 
-        public const String REMOTE_LIBRARY_MISSING_EXCEPTION =
-            "Remote Connection Library is not initialised";
+        public const String RemoteLibraryMissingExceptionMsg = "Remote Connection Library is not initialised";
 
         public virtual ConnectorFacade NewInstance(ConnectorInfo connectorInfo,
             Func<Org.ForgeRock.OpenICF.Framework.Remote.RemoteConnectorInfoImpl, APIConfiguration> transformer)
@@ -310,7 +310,7 @@ namespace Org.ForgeRock.OpenICF.Framework
             {
                 return null;
             }
-            throw new System.NotSupportedException(REMOTE_LIBRARY_MISSING_EXCEPTION);
+            throw new System.NotSupportedException(RemoteLibraryMissingExceptionMsg);
         }
 
         public virtual Task<ConnectorFacade> NewInstanceAsync(ConnectorKey key,
@@ -320,7 +320,7 @@ namespace Org.ForgeRock.OpenICF.Framework
             {
                 return null;
             }
-            throw new System.NotSupportedException(REMOTE_LIBRARY_MISSING_EXCEPTION);
+            throw new System.NotSupportedException(RemoteLibraryMissingExceptionMsg);
         }
 
         // ------ RemoteConnectorFramework Implementation End ------
@@ -351,10 +351,6 @@ namespace Org.ForgeRock.OpenICF.Framework
             }
         }
 
-
-        private ConnectionManagerConfig connectionManagerConfig = new ConnectionManagerConfig();
-
-
         protected internal virtual IAsyncConnectorInfoManager ConnectionInfoManager
         {
             get { return LocalManager; }
@@ -362,8 +358,8 @@ namespace Org.ForgeRock.OpenICF.Framework
 
         public virtual ConnectionManagerConfig ConnectionManagerConfig
         {
-            get { return connectionManagerConfig; }
-            set { connectionManagerConfig = value ?? new ConnectionManagerConfig(); }
+            get { return _connectionManagerConfig; }
+            set { _connectionManagerConfig = value ?? new ConnectionManagerConfig(); }
         }
     }
 
@@ -374,15 +370,15 @@ namespace Org.ForgeRock.OpenICF.Framework
     public abstract class DelegatingAsyncConnectorInfoManager :
         DisposableAsyncConnectorInfoManager<DelegatingAsyncConnectorInfoManager>
     {
-        protected internal readonly ConcurrentDictionary<IAsyncConnectorInfoManager, Boolean> delegates =
+        protected readonly ConcurrentDictionary<IAsyncConnectorInfoManager, Boolean> delegates =
             new ConcurrentDictionary<IAsyncConnectorInfoManager, Boolean>();
 
         private readonly ConcurrentDictionary<Pair<ConnectorKeyRange, DeferredPromise>, Boolean>
-            deferredRangePromiseCacheList;
+            _deferredRangePromiseCacheList;
 
-        private readonly ConcurrentDictionary<Pair<ConnectorKey, DeferredPromise>, Boolean> deferredKeyPromiseCacheList;
+        private readonly ConcurrentDictionary<Pair<ConnectorKey, DeferredPromise>, Boolean> _deferredKeyPromiseCacheList;
 
-        private readonly bool allowDeferred;
+        private readonly bool _allowDeferred;
 
         public delegate void CloseListener(DelegatingAsyncConnectorInfoManager connectorInfoManager);
 
@@ -393,13 +389,13 @@ namespace Org.ForgeRock.OpenICF.Framework
 
         protected DelegatingAsyncConnectorInfoManager(bool allowDeferred)
         {
-            this.allowDeferred = allowDeferred;
+            _allowDeferred = allowDeferred;
             if (allowDeferred)
             {
-                deferredRangePromiseCacheList =
+                _deferredRangePromiseCacheList =
                     new ConcurrentDictionary<Pair<ConnectorKeyRange, DeferredPromise>, Boolean>();
 
-                deferredKeyPromiseCacheList = new ConcurrentDictionary<Pair<ConnectorKey, DeferredPromise>, Boolean>();
+                _deferredKeyPromiseCacheList = new ConcurrentDictionary<Pair<ConnectorKey, DeferredPromise>, Boolean>();
                 Disposed += (sender, args) =>
                 {
                     DelegatingAsyncConnectorInfoManager outerInstance = sender as DelegatingAsyncConnectorInfoManager;
@@ -407,30 +403,30 @@ namespace Org.ForgeRock.OpenICF.Framework
                     {
                         foreach (
                             Pair<ConnectorKeyRange, DeferredPromise> promise in
-                                outerInstance.deferredRangePromiseCacheList.Keys)
+                                outerInstance._deferredRangePromiseCacheList.Keys)
                         {
                             promise.Second.Shutdown();
                         }
-                        outerInstance.deferredRangePromiseCacheList.Clear();
+                        outerInstance._deferredRangePromiseCacheList.Clear();
 
                         foreach (
                             Pair<ConnectorKey, DeferredPromise> promise in
-                                outerInstance.deferredKeyPromiseCacheList.Keys)
+                                outerInstance._deferredKeyPromiseCacheList.Keys)
                         {
                             promise.Second.Shutdown();
                         }
-                        outerInstance.deferredKeyPromiseCacheList.Clear();
+                        outerInstance._deferredKeyPromiseCacheList.Clear();
                     }
                 };
             }
             else
             {
-                deferredRangePromiseCacheList = null;
-                deferredKeyPromiseCacheList = null;
+                _deferredRangePromiseCacheList = null;
+                _deferredKeyPromiseCacheList = null;
             }
         }
 
-        protected internal abstract
+        protected abstract
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
             MessageDistributor { get; }
 
@@ -459,13 +455,13 @@ namespace Org.ForgeRock.OpenICF.Framework
 
         protected internal virtual void OnAddAsyncConnectorInfoManager(IAsyncConnectorInfoManager @delegate)
         {
-            if (allowDeferred)
+            if (_allowDeferred)
             {
-                foreach (Pair<ConnectorKeyRange, DeferredPromise> promise in deferredRangePromiseCacheList.Keys)
+                foreach (Pair<ConnectorKeyRange, DeferredPromise> promise in _deferredRangePromiseCacheList.Keys)
                 {
                     promise.Second.Add(@delegate.FindConnectorInfoAsync(promise.First));
                 }
-                foreach (Pair<ConnectorKey, DeferredPromise> promise in deferredKeyPromiseCacheList.Keys)
+                foreach (Pair<ConnectorKey, DeferredPromise> promise in _deferredKeyPromiseCacheList.Keys)
                 {
                     promise.Second.Add(@delegate.FindConnectorInfoAsync(promise.First));
                 }
@@ -502,7 +498,7 @@ namespace Org.ForgeRock.OpenICF.Framework
                         {
                             if (task.IsFaulted)
                             {
-                                TrySetException(task.Exception);
+                                TrySetException(task.Exception ?? new Exception());
                             }
                             else
                             {
@@ -526,12 +522,12 @@ namespace Org.ForgeRock.OpenICF.Framework
             else
             {
                 IEnumerator<IAsyncConnectorInfoManager> safeDelegates = Delegates.GetEnumerator();
-                DeferredPromise promise = new DeferredPromise(allowDeferred);
+                DeferredPromise promise = new DeferredPromise(_allowDeferred);
                 Pair<ConnectorKey, DeferredPromise> entry = Pair<ConnectorKey, DeferredPromise>.Of(key, promise);
 
-                if (allowDeferred)
+                if (_allowDeferred)
                 {
-                    deferredKeyPromiseCacheList.TryAdd(entry, true);
+                    _deferredKeyPromiseCacheList.TryAdd(entry, true);
                 }
 
                 bool pending = true;
@@ -540,20 +536,20 @@ namespace Org.ForgeRock.OpenICF.Framework
                     pending = promise.Add(safeDelegates.Current.FindConnectorInfoAsync(key));
                 }
 
-                if (allowDeferred && Running)
+                if (_allowDeferred && Running)
                 {
                     if (pending)
                     {
                         promise.Task.ContinueWith(task =>
                         {
                             bool ignore;
-                            deferredKeyPromiseCacheList.TryRemove(entry, out ignore);
-                        });
+                            _deferredKeyPromiseCacheList.TryRemove(entry, out ignore);
+                        }).ConfigureAwait(false);
                     }
                     else
                     {
                         bool ignore;
-                        deferredKeyPromiseCacheList.TryRemove(entry, out ignore);
+                        _deferredKeyPromiseCacheList.TryRemove(entry, out ignore);
                     }
                 }
                 else if (!Running)
@@ -574,64 +570,58 @@ namespace Org.ForgeRock.OpenICF.Framework
             {
                 throw new InvalidOperationException("AsyncConnectorInfoManager is shut down!");
             }
-            else
+            if (keyRange.BundleVersionRange.Empty)
             {
-                if (keyRange.BundleVersionRange.Empty)
+                TaskCompletionSource<ConnectorInfo> result = new TaskCompletionSource<ConnectorInfo>();
+                result.SetException(new ArgumentException("ConnectorBundle VersionRange is Empty"));
+                return await result.Task;
+            }
+            if (keyRange.BundleVersionRange.Exact)
+            {
+                return await FindConnectorInfoAsync(keyRange.ExactConnectorKey);
+            }
+            IEnumerator<IAsyncConnectorInfoManager> safeDelegates = Delegates.GetEnumerator();
+
+            DeferredPromise promise = new DeferredPromise(_allowDeferred);
+            Pair<ConnectorKeyRange, DeferredPromise> entry =
+                Pair<ConnectorKeyRange, DeferredPromise>.Of(keyRange, promise);
+
+            if (_allowDeferred)
+            {
+                _deferredRangePromiseCacheList.TryAdd(entry, true);
+            }
+
+            bool pending = true;
+            while (pending && safeDelegates.MoveNext())
+            {
+                pending = promise.Add(safeDelegates.Current.FindConnectorInfoAsync(keyRange));
+            }
+            if (_allowDeferred && Running)
+            {
+                if (pending)
                 {
-                    TaskCompletionSource<ConnectorInfo> result = new TaskCompletionSource<ConnectorInfo>();
-                    result.SetException(new ArgumentException("ConnectorBundle VersionRange is Empty"));
-                    return await result.Task;
-                }
-                else if (keyRange.BundleVersionRange.Exact)
-                {
-                    return await FindConnectorInfoAsync(keyRange.ExactConnectorKey);
+                    promise.Task.ContinueWith((task, state) =>
+                    {
+                        bool ignore;
+                        _deferredRangePromiseCacheList.TryRemove(
+                            (Pair<ConnectorKeyRange, DeferredPromise>) state, out ignore);
+                    }, entry).ConfigureAwait(false);
                 }
                 else
                 {
-                    IEnumerator<IAsyncConnectorInfoManager> safeDelegates = Delegates.GetEnumerator();
-
-                    DeferredPromise promise = new DeferredPromise(allowDeferred);
-                    Pair<ConnectorKeyRange, DeferredPromise> entry =
-                        Pair<ConnectorKeyRange, DeferredPromise>.Of(keyRange, promise);
-
-                    if (allowDeferred)
-                    {
-                        deferredRangePromiseCacheList.TryAdd(entry, true);
-                    }
-
-                    bool pending = true;
-                    while (pending && safeDelegates.MoveNext())
-                    {
-                        pending = promise.Add(safeDelegates.Current.FindConnectorInfoAsync(keyRange));
-                    }
-                    if (allowDeferred && Running)
-                    {
-                        if (pending)
-                        {
-                            promise.Task.ContinueWith((task, state) =>
-                            {
-                                bool ignore;
-                                deferredRangePromiseCacheList.TryRemove(
-                                    (Pair<ConnectorKeyRange, DeferredPromise>) state, out ignore);
-                            }, entry);
-                        }
-                        else
-                        {
-                            bool ignore;
-                            deferredRangePromiseCacheList.TryRemove(entry, out ignore);
-                        }
-                    }
-                    else if (!Running)
-                    {
-                        promise.Shutdown();
-                    }
-
-                    return await
-                        promise.Task.ContinueWith(
-                            task => new RemoteConnectorInfoImpl(MessageDistributor,
-                                (RemoteConnectorInfoImpl) task.Result));
+                    bool ignore;
+                    _deferredRangePromiseCacheList.TryRemove(entry, out ignore);
                 }
             }
+            else if (!Running)
+            {
+                promise.Shutdown();
+            }
+
+            return await
+                promise.Task.ContinueWith(
+                    task => new RemoteConnectorInfoImpl(MessageDistributor,
+                        (RemoteConnectorInfoImpl) task.Result));
         }
 
         public override IList<ConnectorInfo> ConnectorInfos

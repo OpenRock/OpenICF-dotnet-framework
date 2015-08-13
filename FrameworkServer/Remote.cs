@@ -27,7 +27,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Security.Principal;
 using System.Threading;
@@ -60,16 +59,16 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
     #region AsyncRemoteConnectorInfoManager
 
     /// <summary>
-    ///     A AsyncRemoteConnectorInfoManager.
-    ///     @since 1.5
+    ///     An AsyncRemoteConnectorInfoManager.
     /// </summary>
+    /// <remarks>Since 1.5</remarks>
     public class AsyncRemoteConnectorInfoManager : DelegatingAsyncConnectorInfoManager
     {
-        protected internal readonly IDisposable RemoteDisposable;
+        protected readonly IDisposable RemoteDisposable;
 
-        protected internal readonly
+        private readonly
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
-            messageDistributor;
+            _messageDistributor;
 
         public AsyncRemoteConnectorInfoManager(IDisposable remoteDisposable,
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
@@ -77,7 +76,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             : base(false)
         {
             RemoteDisposable = remoteDisposable;
-            this.messageDistributor = messageDistributor;
+            _messageDistributor = messageDistributor;
         }
 
         public AsyncRemoteConnectorInfoManager(IRemoteConnectorInfoManager loadBalancingAlgorithm)
@@ -102,11 +101,11 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         }
 
 
-        protected internal override
+        protected override
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
             MessageDistributor
         {
-            get { return messageDistributor; }
+            get { return _messageDistributor; }
         }
 
         protected override void DoClose()
@@ -117,7 +116,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 {
                     RemoteDisposable.Dispose();
                 }
-                catch (IOException e)
+                catch (Exception e)
                 {
                     TraceUtil.TraceException("Failed to close underlying remote connection", e);
                 }
@@ -226,8 +225,8 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             ConcurrentDictionary<string, WebSocketConnectionGroup> globalConnectionGroups)
             : base(new GenericIdentity(DefaultName), new[] {"connector"})
         {
-            this._listener = listener;
-            this._globalConnectionGroups = globalConnectionGroups;
+            _listener = listener;
+            _globalConnectionGroups = globalConnectionGroups;
         }
 
 
@@ -242,17 +241,21 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 ConnectionGroups.TryAdd(message.SessionId, connectionGroup);
                 try
                 {
-                    onNewWebSocketConnectionGroup(connectionGroup);
+                    OnNewWebSocketConnectionGroup(connectionGroup);
                 }
                 catch (Exception ignore)
                 {
-                    //logger.ok(ignore, "Failed to notify onNewWebSocketConnectionGroup");
+#if DEBUG
+                    StringBuilder sb = new StringBuilder("Failed to notify onNewWebSocketConnectionGroup - ");
+                    TraceUtil.ExceptionToString(sb, ignore, String.Empty);
+                    Debug.WriteLine(sb.ToString());
+#endif
                 }
             }
             return connectionGroup.Handshake(this, webSocketConnection, message);
         }
 
-        protected internal virtual void onNewWebSocketConnectionGroup(WebSocketConnectionGroup connectionGroup)
+        protected virtual void OnNewWebSocketConnectionGroup(WebSocketConnectionGroup connectionGroup)
         {
         }
 
@@ -309,7 +312,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
 
     public class FailoverLoadBalancingAlgorithmFactory : LoadBalancingAlgorithmFactory
     {
-        protected internal override
+        protected override
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
             CreateLoadBalancer(
             IList<IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>>
@@ -356,7 +359,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             return CreateLoadBalancer(delegates);
         }
 
-        protected internal abstract
+        protected abstract
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
             CreateLoadBalancer(
             IList<IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>>
@@ -380,7 +383,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
         ///     to determine the proper default configuration parameters.
         /// </summary>
         /// <returns> default APIConfiguration </returns>
-        API.APIConfiguration APIConfiguration { get; }
+        API.APIConfiguration ApiConfiguration { get; }
 
         /// <summary>
         ///     Gets the principal name of executing
@@ -407,9 +410,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
 
     #region LoadBalancingConnectorInfoManager
 
-    /// <summary>
-    ///     @since 1.5
-    /// </summary>
+    /// <remarks>Since 1.5</remarks>
     public class LoadBalancingConnectorInfoManager : AsyncRemoteConnectorInfoManager
     {
         public LoadBalancingConnectorInfoManager(LoadBalancingAlgorithmFactory loadBalancingAlgorithmFactory)
@@ -420,7 +421,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
         public virtual Task<API.ConnectorFacade> NewInstance(API.ConnectorKey key,
             Func<API.APIConfiguration, ILoadBalancingConnectorFacadeContext> transformer)
         {
-            return FindConnectorInfoAsync(key).ContinueWith((Task<API.ConnectorInfo> task, object state) =>
+            return FindConnectorInfoAsync(key).ContinueWith((task, state) =>
             {
                 if (task.Result is RemoteConnectorInfoImpl)
                 {
@@ -482,8 +483,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             _rangePromiseCacheList =
                 new ConcurrentDictionary<Pair<ConnectorKeyRange, TaskCompletionSource<API.ConnectorInfo>>, Boolean>();
 
-        public static readonly InvalidOperationException ClosedException =
-            new InvalidOperationException("AsyncConnectorInfoManager is shut down!");
+        public const String ClosedExceptionMsg = "AsyncConnectorInfoManager is shut down!";
 
 
         protected override void DoClose()
@@ -601,7 +601,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                         bool ignore;
                         _rangePromiseCacheList.TryRemove(cacheEntry, out ignore);
                         var result = new TaskCompletionSource<API.ConnectorInfo>();
-                        result.SetException(ClosedException);
+                        result.SetException(new InvalidOperationException(ClosedExceptionMsg));
                         return result.Task;
                     }
                     return cacheEntry.Second.Task;
@@ -621,7 +621,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             entry.AddOrFirePromise(promise);
             if (IsRunning != 1 && !promise.Task.IsCompleted)
             {
-                promise.SetException(ClosedException);
+                promise.SetException(new InvalidOperationException(ClosedExceptionMsg));
             }
             return await promise.Task;
         }
@@ -1124,7 +1124,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                     return (T) (object) builder;
                 }
             }
-            throw new NotImplementedException("From not supported");
+            throw new NotImplementedException("To not supported");
         }
     }
 
@@ -1193,10 +1193,11 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
 
         public virtual void OnMessage(WebSocketConnectionHolder socket, byte[] bytes)
         {
-            Trace.TraceInformation("{0} onMessage()", LoggerName());
-            Trace.TraceInformation("{0} Receive {1} bytes message over Socket:{2}", LoggerName(), bytes.Length,
-                socket.Id);
-
+#if DEBUG
+            Debug.WriteLine("{0} onMessage(socket[{1}], {2}:bytes)", LoggerName(), socket.Id, bytes.Length);
+#else
+            Trace.TraceInformation("{0} onMessage({1}:bytes)", LoggerName(), bytes.Length);
+#endif
             try
             {
                 PRB.RemoteMessage message = PRB.RemoteMessage.Parser.ParseFrom(bytes);
@@ -1309,9 +1310,10 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             }
             else
             {
-                socket.RemoteConnectionContext.RemoteConnectionGroup.TrySendMessage(
+                socket.SendBytesAsync(
                     MessagesUtil.CreateErrorResponse(messageId,
-                        new ConnectorException("Connection received request before handshake")));
+                        new ConnectorException("Connection received request before handshake")).ToByteArray(),
+                    CancellationToken.None);
             }
         }
 
@@ -1325,9 +1327,10 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             }
             else
             {
-                socket.RemoteConnectionContext.RemoteConnectionGroup.TrySendMessage(
+                socket.SendBytesAsync(
                     MessagesUtil.CreateErrorResponse(messageId,
-                        new ConnectorException("Connection received request before handshake")));
+                        new ConnectorException("Connection received response before handshake")).ToByteArray(),
+                    CancellationToken.None);
             }
         }
 
@@ -1337,7 +1340,9 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             Trace.TraceInformation("{0} onPing()", LoggerName());
             try
             {
+#if DEBUG
                 PRB.PingMessage message = PRB.PingMessage.Parser.ParseFrom(bytes);
+#endif
             }
             catch (InvalidProtocolBufferException e)
             {
@@ -1351,13 +1356,14 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             Trace.TraceInformation("{0} onPong()", LoggerName());
             try
             {
+#if DEBUG
                 PRB.PingMessage message = PRB.PingMessage.Parser.ParseFrom(bytes);
+#endif
             }
             catch (InvalidProtocolBufferException e)
             {
                 Trace.TraceWarning("{0} failed parse message {1}", LoggerName(), e);
             }
-            // socket.touch();
         }
 
         protected internal virtual bool Client { get; private set; }
@@ -1438,7 +1444,8 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
         public virtual void ProcessOperationRequest(WebSocketConnectionHolder socket, long messageId,
             PRB.OperationRequest message)
         {
-            //logger.ok("IN Request({0}:{1})", messageId, socket.RemoteConnectionContext.RemotePrincipal.Name);
+            Debug.WriteLine("IN Request({0}:{1})", messageId,
+                socket.RemoteConnectionContext.RemotePrincipal.Identity.Name);
             Org.ForgeRock.OpenICF.Common.ProtoBuf.ConnectorKey connectorKey = message.ConnectorKey;
 
             API.ConnectorInfo info = FindConnectorInfo(connectorKey);
@@ -1551,7 +1558,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             }
             catch (Exception t)
             {
-                //logger.ok(t, "Failed handle OperationRequest {0}", messageId);
+                TraceUtil.TraceException("Failed handle OperationRequest " + messageId, t);
                 socket.RemoteConnectionContext.RemoteConnectionGroup.TrySendMessage(
                     MessagesUtil.CreateErrorResponse(messageId, t));
             }
@@ -1560,7 +1567,8 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
         public virtual void ProcessOperationResponse(WebSocketConnectionHolder socket, long messageId,
             PRB.OperationResponse message)
         {
-            //logger.ok("IN Response({0}:{1})", messageId, socket.RemoteConnectionContext.RemotePrincipal.Name);
+            Debug.WriteLine("IN Response({0}:{1})", messageId,
+                socket.RemoteConnectionContext.RemotePrincipal.Identity.Name);
             socket.RemoteConnectionContext.RemoteConnectionGroup.ReceiveRequestResponse(socket, messageId, message);
         }
 
@@ -1604,7 +1612,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
 
         public virtual API.ConnectorFacade NewInstance(API.ConnectorInfo connectorInfo, string config)
         {
-            return _connectorFramework.newManagedInstance(connectorInfo, config);
+            return _connectorFramework.NewManagedInstance(connectorInfo, config);
         }
 
         public virtual API.ConnectorInfo FindConnectorInfo(Org.ForgeRock.OpenICF.Common.ProtoBuf.ConnectorKey key)
@@ -1623,7 +1631,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
     ///     An object which is lazily created when first referenced, and destroyed when
     ///     the last reference is released.
     /// </summary>
-    /// <paramref name="T">The type of referenced object. </paramref>
+    /// <typeparamref name="T">The type of referenced object. </typeparamref>
     public abstract class ReferenceCountedObject<T>
     {
         /// <summary>
@@ -1782,23 +1790,23 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
 
     public class RemoteAsyncConnectorFacade : AbstractConnectorFacade, IAsyncConnectorFacade
     {
-        private readonly ConcurrentDictionary<String, ByteString> facadeKeys;
+        private readonly ConcurrentDictionary<String, ByteString> _facadeKeys;
 
-        private readonly IAuthenticationAsyncApiOp authenticationApiOp;
-        private readonly ICreateAsyncApiOp createApiOp;
-        private readonly IConnectorEventSubscriptionApiOp connectorEventSubscriptionApiOp;
-        private readonly IDeleteAsyncApiOp deleteApiOp;
-        private readonly IGetAsyncApiOp getApiOp;
-        private readonly IResolveUsernameAsyncApiOp resolveUsernameApiOp;
-        private readonly ISchemaAsyncApiOp schemaApiOp;
-        private readonly IScriptOnConnectorAsyncApiOp scriptOnConnectorApiOp;
-        private readonly IScriptOnResourceAsyncApiOp scriptOnResourceApiOp;
-        private readonly ISearchAsyncApiOp searchApiOp;
-        private readonly ISyncAsyncApiOp syncApiOp;
-        private readonly ISyncEventSubscriptionApiOp syncEventSubscriptionApiOp;
-        private readonly ITestAsyncApiOp testApiOp;
-        private readonly IUpdateAsyncApiOp updateApiOp;
-        private readonly IValidateAsyncApiOp validateApiOp;
+        private readonly IAuthenticationAsyncApiOp _authenticationApiOp;
+        private readonly ICreateAsyncApiOp _createApiOp;
+        private readonly IConnectorEventSubscriptionApiOp _connectorEventSubscriptionApiOp;
+        private readonly IDeleteAsyncApiOp _deleteApiOp;
+        private readonly IGetAsyncApiOp _getApiOp;
+        private readonly IResolveUsernameAsyncApiOp _resolveUsernameApiOp;
+        private readonly ISchemaAsyncApiOp _schemaApiOp;
+        private readonly IScriptOnConnectorAsyncApiOp _scriptOnConnectorApiOp;
+        private readonly IScriptOnResourceAsyncApiOp _scriptOnResourceApiOp;
+        private readonly ISearchAsyncApiOp _searchApiOp;
+        private readonly ISyncAsyncApiOp _syncApiOp;
+        private readonly ISyncEventSubscriptionApiOp _syncEventSubscriptionApiOp;
+        private readonly ITestAsyncApiOp _testApiOp;
+        private readonly IUpdateAsyncApiOp _updateApiOp;
+        private readonly IValidateAsyncApiOp _validateApiOp;
 
 
         private class InnerFacadeContext : ILoadBalancingConnectorFacadeContext
@@ -1812,7 +1820,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 _context = context;
             }
 
-            public API.APIConfiguration APIConfiguration
+            public API.APIConfiguration ApiConfiguration
             {
                 get { return _connectorInfo.CreateDefaultAPIConfiguration(); }
             }
@@ -1844,11 +1852,11 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 Func<RemoteOperationContext, ByteString> facadeKeyFunction;
                 if (null != transformer)
                 {
-                    facadeKeys = new ConcurrentDictionary<string, ByteString>();
+                    _facadeKeys = new ConcurrentDictionary<string, ByteString>();
                     facadeKeyFunction = (value) =>
                     {
                         ByteString facadeKey;
-                        facadeKeys.TryGetValue(value.RemotePrincipal.Identity.Name, out facadeKey);
+                        _facadeKeys.TryGetValue(value.RemotePrincipal.Identity.Name, out facadeKey);
                         if (null == facadeKey)
                         {
                             API.ConnectorInfo connectorInfo = value.RemoteConnectionGroup.FindConnectorInfo(connectorKey);
@@ -1871,12 +1879,14 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                                                 connectorFacadeKey,
                                                 GetAPIConfiguration().ChangeListener);
                                         }
-                                        facadeKeys.TryAdd(value.RemotePrincipal.Identity.Name, facadeKey);
+                                        _facadeKeys.TryAdd(value.RemotePrincipal.Identity.Name, facadeKey);
                                     }
                                 }
                                 catch (Exception t)
                                 {
-                                    //Trace.TraceWarning(t, "Failed to build APIConfiguration for {0}", value.RemotePrincipal.Identity.Name);
+                                    TraceUtil.TraceException(TraceLevel.Warning,
+                                        "Failed to build APIConfiguration for {0}", t,
+                                        value.RemotePrincipal.Identity.Name);
                                 }
                             }
                             else
@@ -1891,7 +1901,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
                 else
                 {
-                    facadeKeys = null;
+                    _facadeKeys = null;
                     ByteString facadeKey = ByteString.CopyFromUtf8(ConnectorFacadeKey);
                     facadeKeyFunction = context =>
                     {
@@ -1907,118 +1917,118 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 // initialise operations
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<AuthenticationApiOp>()))
                 {
-                    authenticationApiOp = new AuthenticationAsyncApiOpImpl(remoteConnection, connectorKey,
+                    _authenticationApiOp = new AuthenticationAsyncApiOpImpl(remoteConnection, connectorKey,
                         facadeKeyFunction);
                 }
                 else
                 {
-                    authenticationApiOp = null;
+                    _authenticationApiOp = null;
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<CreateApiOp>()))
                 {
-                    createApiOp = new CreateAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _createApiOp = new CreateAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
                 }
                 else
                 {
-                    createApiOp = null;
+                    _createApiOp = null;
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<IConnectorEventSubscriptionApiOp>()))
                 {
-                    connectorEventSubscriptionApiOp = new ConnectorEventSubscriptionApiOpImpl(remoteConnection,
+                    _connectorEventSubscriptionApiOp = new ConnectorEventSubscriptionApiOpImpl(remoteConnection,
                         connectorKey,
                         facadeKeyFunction);
                 }
                 else
                 {
-                    connectorEventSubscriptionApiOp = null;
+                    _connectorEventSubscriptionApiOp = null;
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<DeleteApiOp>()))
                 {
-                    deleteApiOp = new DeleteAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _deleteApiOp = new DeleteAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
                 }
                 else
                 {
-                    deleteApiOp = null;
+                    _deleteApiOp = null;
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<ResolveUsernameApiOp>()))
                 {
-                    resolveUsernameApiOp = new ResolveUsernameAsyncApiOpImpl(remoteConnection, connectorKey,
+                    _resolveUsernameApiOp = new ResolveUsernameAsyncApiOpImpl(remoteConnection, connectorKey,
                         facadeKeyFunction);
                 }
                 else
                 {
-                    resolveUsernameApiOp = null;
+                    _resolveUsernameApiOp = null;
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<SchemaApiOp>()))
                 {
-                    schemaApiOp = new SchemaAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _schemaApiOp = new SchemaAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
                 }
                 else
                 {
-                    schemaApiOp = null;
+                    _schemaApiOp = null;
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<ScriptOnConnectorApiOp>()))
                 {
-                    scriptOnConnectorApiOp = new ScriptOnConnectorAsyncApiOpImpl(remoteConnection, connectorKey,
+                    _scriptOnConnectorApiOp = new ScriptOnConnectorAsyncApiOpImpl(remoteConnection, connectorKey,
                         facadeKeyFunction);
                 }
                 else
                 {
-                    scriptOnConnectorApiOp = null;
+                    _scriptOnConnectorApiOp = null;
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<ScriptOnResourceApiOp>()))
                 {
-                    scriptOnResourceApiOp = new ScriptOnResourceAsyncApiOpImpl(remoteConnection, connectorKey,
+                    _scriptOnResourceApiOp = new ScriptOnResourceAsyncApiOpImpl(remoteConnection, connectorKey,
                         facadeKeyFunction);
                 }
                 else
                 {
-                    scriptOnResourceApiOp = null;
+                    _scriptOnResourceApiOp = null;
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<SearchApiOp>()))
                 {
-                    searchApiOp = new SearchAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
-                    getApiOp = new GetAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _searchApiOp = new SearchAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _getApiOp = new GetAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
                 }
                 else
                 {
-                    searchApiOp = null;
-                    getApiOp = null;
+                    _searchApiOp = null;
+                    _getApiOp = null;
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<SyncApiOp>()))
                 {
-                    syncApiOp = new SyncAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _syncApiOp = new SyncAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
                 }
                 else
                 {
-                    syncApiOp = null;
+                    _syncApiOp = null;
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<ISyncEventSubscriptionApiOp>()))
                 {
-                    syncEventSubscriptionApiOp = new SyncEventSubscriptionApiOpImpl(remoteConnection, connectorKey,
+                    _syncEventSubscriptionApiOp = new SyncEventSubscriptionApiOpImpl(remoteConnection, connectorKey,
                         facadeKeyFunction);
                 }
                 else
                 {
-                    syncEventSubscriptionApiOp = null;
+                    _syncEventSubscriptionApiOp = null;
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<TestApiOp>()))
                 {
-                    testApiOp = new TestAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _testApiOp = new TestAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
                 }
                 else
                 {
-                    testApiOp = null;
+                    _testApiOp = null;
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<UpdateApiOp>()))
                 {
-                    updateApiOp = new UpdateAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _updateApiOp = new UpdateAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
                 }
                 else
                 {
-                    updateApiOp = null;
+                    _updateApiOp = null;
                 }
-                validateApiOp = new ValidateAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                _validateApiOp = new ValidateAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
             }
             else
             {
@@ -2053,63 +2063,63 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
         {
             if (typeof (AuthenticationApiOp).IsAssignableFrom(api.RawType))
             {
-                return authenticationApiOp;
+                return _authenticationApiOp;
             }
             if (typeof (CreateApiOp).IsAssignableFrom(api.RawType))
             {
-                return createApiOp;
+                return _createApiOp;
             }
             if (typeof (IConnectorEventSubscriptionApiOp).IsAssignableFrom(api.RawType))
             {
-                return connectorEventSubscriptionApiOp;
+                return _connectorEventSubscriptionApiOp;
             }
             if (typeof (DeleteApiOp).IsAssignableFrom(api.RawType))
             {
-                return deleteApiOp;
+                return _deleteApiOp;
             }
             if (typeof (GetApiOp).IsAssignableFrom(api.RawType))
             {
-                return getApiOp;
+                return _getApiOp;
             }
             if (typeof (ResolveUsernameApiOp).IsAssignableFrom(api.RawType))
             {
-                return resolveUsernameApiOp;
+                return _resolveUsernameApiOp;
             }
             if (typeof (SchemaApiOp).IsAssignableFrom(api.RawType))
             {
-                return schemaApiOp;
+                return _schemaApiOp;
             }
             if (typeof (ScriptOnConnectorApiOp).IsAssignableFrom(api.RawType))
             {
-                return scriptOnConnectorApiOp;
+                return _scriptOnConnectorApiOp;
             }
             if (typeof (ScriptOnResourceApiOp).IsAssignableFrom(api.RawType))
             {
-                return scriptOnResourceApiOp;
+                return _scriptOnResourceApiOp;
             }
             if (typeof (SearchApiOp).IsAssignableFrom(api.RawType))
             {
-                return searchApiOp;
+                return _searchApiOp;
             }
             if (typeof (SyncApiOp).IsAssignableFrom(api.RawType))
             {
-                return syncApiOp;
+                return _syncApiOp;
             }
             if (typeof (ISyncEventSubscriptionApiOp).IsAssignableFrom(api.RawType))
             {
-                return syncEventSubscriptionApiOp;
+                return _syncEventSubscriptionApiOp;
             }
             if (typeof (TestApiOp).IsAssignableFrom(api.RawType))
             {
-                return testApiOp;
+                return _testApiOp;
             }
             if (typeof (UpdateApiOp).IsAssignableFrom(api.RawType))
             {
-                return updateApiOp;
+                return _updateApiOp;
             }
             if (typeof (ValidateApiOp).IsAssignableFrom(api.RawType))
             {
-                return validateApiOp;
+                return _validateApiOp;
             }
             return null;
         }
@@ -2267,7 +2277,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
 
     public class RoundRobinLoadBalancingAlgorithmFactory : LoadBalancingAlgorithmFactory
     {
-        protected internal override
+        protected override
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
             CreateLoadBalancer(
             IList<IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>>

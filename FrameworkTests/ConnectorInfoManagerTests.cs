@@ -393,7 +393,6 @@ namespace FrameworkTests
                     var connectorObjectObservable =
                         Observable.Create<ConnectorObject>(o => localFacade.Subscribe(ObjectClass.ACCOUNT, null, o, null));
 
-
                     var subscription = connectorObjectObservable.Subscribe(
                         co =>
                         {
@@ -409,6 +408,37 @@ namespace FrameworkTests
 
                     cde.Wait(new TimeSpan(0, 0, 25));
                     subscription.Dispose();
+                    Assert.AreEqual(10, handler.Objects.Count);
+
+                    handler = new ToListResultsHandler();
+                    cde = new CountdownEvent(1);
+
+                    connectorObjectObservable =
+                        Observable.Create<ConnectorObject>(
+                            o =>
+                                localFacade.Subscribe(ObjectClass.ACCOUNT, null, o,
+                                    OperationOptionsBuilder.Create().SetOption("doComplete", true).Build()));
+
+                    bool failed = false;
+                    subscription = connectorObjectObservable.Subscribe(
+                        co =>
+                        {
+                            Console.WriteLine("Connector Event received:{0}", co.Uid.GetUidValue());
+                            handler.ResultsHandler.Handle(co);
+                        },
+                        ex =>
+                        {
+                            cde.Signal();
+                            failed = true;
+                        }, () =>
+                        {
+                            cde.Signal();
+                        });
+
+
+                    cde.Wait(new TimeSpan(0, 0, 25));
+                    subscription.Dispose();
+                    Assert.IsFalse(failed);
                     Assert.AreEqual(10, handler.Objects.Count);
 
                     handler = new ToListResultsHandler();

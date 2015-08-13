@@ -368,7 +368,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 WebSockets.TryAdd(webSocketConnection, connectionPrincipal.Identity.Name);
                 webSocketConnection.Disposed += _closeListener;
                 if (null != connectionPrincipal.Identity.Name)
-                _principals.Add(connectionPrincipal.Identity.Name);
+                    _principals.Add(connectionPrincipal.Identity.Name);
                 //This is not thread-safe, it could yield true for cuncurrent threads 
                 if (webSocketConnection.Equals(WebSockets.Keys.First()))
                 {
@@ -495,9 +495,13 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                     {
                         listener.ConfigurationPropertyChange(change);
                     }
-                    catch (Exception)
+                    catch (Exception e)
                     {
-                        // Ignore
+#if DEBUG
+                        StringBuilder builder = new StringBuilder("Failed to notify connfiguration change - ");
+                        TraceUtil.ExceptionToString(builder, e, String.Empty);
+                        Debug.WriteLine(builder.ToString());
+#endif
                     }
                 }
             }
@@ -524,7 +528,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 AddConnectorInfo(new RemoteConnectorInfoImpl(_outerInstance, connectorInfo));
             }
 
-            internal void AddAll<T1>(IList<T1> connectorInfos) where T1 : AbstractConnectorInfo
+            internal void AddAll<T1>(ICollection<T1> connectorInfos) where T1 : AbstractConnectorInfo
             {
                 foreach (var connectorInfo in connectorInfos)
                 {
@@ -587,7 +591,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 if (controlResponse != null)
                 {
                     var response = MessagesUtil.DeserializeLegacy<List<Object>>(controlResponse.ConnectorInfos);
-                    if (null != response)
+                    if (null != response && response.Any())
                     {
                         foreach (var o in response)
                         {
@@ -617,6 +621,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
     public abstract class WebSocketConnectionHolder :
         IRemoteConnectionHolder<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
     {
+#if DEBUG
         private static Int32 _counter;
         private Int32 _id;
 
@@ -631,6 +636,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 return _id;
             }
         }
+#endif
 
         private readonly
             ConcurrentDictionary
@@ -703,15 +709,19 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                         {
                             bool ignore;
                             _messageQueue.TryRemove(entry.Key, out ignore);
-                            Trace.TraceInformation("Dequeue from {2} Message:{1}, Pending:{0}", _messageQueue.Count,
+#if DEBUG
+                            Debug.WriteLine("Dequeue from {2} Message:{1}, Pending:{0}", _messageQueue.Count,
                                 entry.Key.Id, Id);
+#endif
                         }
                     }
                 } while (_messageQueue.Any());
 
                 _onMessageToSendEvent.WaitOne();
             }
-            Trace.TraceInformation("Finish Writting messages on {0}", Id);
+#if DEBUG
+            Debug.WriteLine("Finish Writting messages over Socket:{0}", Id);
+#endif
             foreach (var asyncQueueRecord in _messageQueue.Keys)
             {
                 asyncQueueRecord.Detach(this);
@@ -723,7 +733,9 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             if (null == RemoteConnectionContext)
             {
                 Handshake(message);
-                Trace.TraceInformation("New Connection accepted {0}:{1}", GetType().FullName, Id);
+#if DEBUG
+                Debug.WriteLine("New Connection accepted {0}:{1}", GetType().FullName, Id);
+#endif
             }
             return HandHooked;
         }
@@ -736,6 +748,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public void Dispose()
         {
             TryClose();
+            _onMessageToSendEvent.Set();
             OnDisposed();
         }
 
@@ -746,9 +759,13 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 var handler = DisposedEvent;
                 if (handler != null) handler(this, EventArgs.Empty);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                //logger.ok(ignored, "CloseListener failed");
+#if DEBUG
+                StringBuilder builder = new StringBuilder("DisposedEvent failed - ");
+                TraceUtil.ExceptionToString(builder, e, String.Empty);
+                Debug.WriteLine(builder.ToString());
+#endif
             }
         }
 
@@ -768,14 +785,15 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             {
                 if (_messageQueue.TryAdd(record, true) && !Operational)
                 {
-                    Trace.TraceInformation("Reject Enqueue Message");
                     bool ignore;
                     _messageQueue.TryRemove(record, out ignore);
                     record.Detach(this);
                 }
                 else
                 {
-                    Trace.TraceInformation("Enqueue on:{0} Message:{1}", Id, record.Id);
+#if DEBUG
+                    Debug.WriteLine("Enqueue Socket:{0} Message:{1}", Id, record.Id);
+#endif
                     _onMessageToSendEvent.Set();
                 }
             }
@@ -791,7 +809,11 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
 
             public override string ToString()
             {
-                return String.Format("{2} Message - Id:[{0}] size:{1}", Id, _message.Length, _messageType);
+#if DEBUG
+                return String.Format("{1} Message - Id:[{2}] size:{0}", _message.Length, _messageType, Id);
+#else
+                return String.Format("Message - size:{0}", _message.Length, _messageType);
+#endif
             }
 
             public InternalAsyncMessageQueueRecord(byte[] message)
@@ -808,8 +830,9 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
 
             protected override Task DoSend(WebSocketConnectionHolder connection)
             {
-                Trace.TraceInformation("WebSocket: {0} writes {1} bytes of message: {2}", connection.Id, _message.Length,
-                    Id);
+#if DEBUG
+                Debug.WriteLine("WebSocket: {0} writes {1} bytes of message: {2}", connection.Id, _message.Length, Id);
+#endif
                 return connection.WriteMessageAsync(_message, _messageType);
             }
         }

@@ -190,6 +190,13 @@ namespace FrameworkTests
             Assert.IsTrue(rS2.IsInRange(k2));
             Assert.IsTrue(r2.IsInRange(kS2));
             Assert.IsTrue(r2.IsInRange(k2));
+
+            ConnectorKeyRange r45 =
+                ConnectorKeyRange.NewBuilder().SetBundleName("B").SetConnectorName("C")
+                    .SetBundleVersion("[1.4.0.0,1.5.0.0)").Build();
+            Assert.IsTrue(r45.IsInRange(new ConnectorKey("B", "1.4.0.0", "C")));
+
+            Assert.IsFalse(r45.IsInRange(new ConnectorKey("B", "1.5.0.0", "C")));
         }
     }
 }

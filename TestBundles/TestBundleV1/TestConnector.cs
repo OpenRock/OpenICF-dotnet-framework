@@ -233,23 +233,40 @@ namespace org.identityconnectors.testconnector
         {
             ICF.ConnectorObjectBuilder builder = new ICF.ConnectorObjectBuilder {ObjectClass = objectClass};
 
+            Object op = CollectionUtil.GetValue(operationOptions.Options, "eventCount", null);
+            int? eventCount = op as int? ?? 10;
+
+            bool doComplete = operationOptions.Options.ContainsKey("doComplete");
+
             ICF.CancellationSubscription subscription = new ICF.CancellationSubscription();
 
             DoPeriodicWorkAsync(runCount =>
             {
+                if (_config == null)
+                {
+                    handler.OnError(new InvalidOperationException("Connector has been disposed"));
+                    return false;
+                }
                 builder.SetUid(Convert.ToString(runCount));
                 builder.SetName(Convert.ToString(runCount));
                 handler.OnNext(builder.Build());
 
-                if (runCount >= 10)
+                if (runCount >= eventCount)
                 {
                     // Locally stop serving subscription
-                    handler.OnError(new ConnectorException("Subscription channel is closed"));
+                    if (doComplete)
+                    {
+                        handler.OnCompleted();
+                    }
+                    else
+                    {
+                        handler.OnError(new ConnectorException("Subscription channel is closed"));
+                    }
                     // The loop should be stopped from here.
                     return false;
                 }
                 return true;
-            }, new TimeSpan(0, 0, 0, 0, 500), new TimeSpan(0, 0, 1), subscription.Token);
+            }, new TimeSpan(0, 0, 0, 0, 500), new TimeSpan(0, 0, 1), subscription.Token).ConfigureAwait(false);
 
 
             return subscription;
@@ -290,22 +307,39 @@ namespace org.identityconnectors.testconnector
                 Object = coBuilder.Build()
             };
 
+            Object op = CollectionUtil.GetValue(operationOptions.Options, "eventCount", null);
+            int? eventCount = op as int? ?? 10;
+
+            bool doComplete = operationOptions.Options.ContainsKey("doComplete");
+
             ICF.CancellationSubscription subscription = new ICF.CancellationSubscription();
 
             DoPeriodicWorkAsync(runCount =>
             {
+                if (_config == null)
+                {
+                    handler.OnError(new InvalidOperationException("Connector has been disposed"));
+                    return false;
+                }
                 builder.Token = new ICF.SyncToken(runCount);
                 handler.OnNext(builder.Build());
 
-                if (runCount >= 10)
+                if (runCount >= eventCount)
                 {
                     // Locally stop serving subscription
-                    handler.OnError(new ConnectorException("Subscription channel is closed"));
+                    if (doComplete)
+                    {
+                        handler.OnCompleted();
+                    }
+                    else
+                    {
+                        handler.OnError(new ConnectorException("Subscription channel is closed"));
+                    }
                     // ScheduledFuture should be stopped from here.
                     return false;
                 }
                 return true;
-            }, new TimeSpan(0, 0, 0, 0, 500), new TimeSpan(0, 0, 1), subscription.Token);
+            }, new TimeSpan(0, 0, 0, 0, 500), new TimeSpan(0, 0, 1), subscription.Token).ConfigureAwait(false);
 
 
             return subscription;

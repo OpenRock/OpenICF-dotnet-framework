@@ -88,7 +88,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
 
     public abstract class AbstractLocalOperationProcessor<TV, TM> : LocalOperationProcessor<TV>
     {
-        private readonly TM _requestMessage;
+        protected readonly TM _requestMessage;
 
         protected internal AbstractLocalOperationProcessor(long requestId, WebSocketConnectionHolder socket, TM message)
             : base(requestId, socket)
