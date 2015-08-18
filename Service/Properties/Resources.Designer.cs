@@ -61,7 +61,7 @@ namespace Org.IdentityConnectors.Framework.Service.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to &lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; ?&gt;
+        ///   Looks up a localized string similar to &lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
         ///&lt;configuration&gt;
         ///  &lt;runtime&gt;
         ///    &lt;loadFromRemoteSources enabled=&quot;true&quot;/&gt;
@@ -74,7 +74,7 @@ namespace Org.IdentityConnectors.Framework.Service.Properties {
         ///  &lt;/connectionStrings&gt;
         ///  &lt;appSettings&gt;
         ///    &lt;!-- access these values via the property:
-        ///  [rest of string was truncated]&quot;;.
+        ///   [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string DefaultConfig {
             get {

@@ -597,6 +597,10 @@ namespace Org.ForgeRock.OpenICF.Common.RPC
                     RemoteRequests.TryRemove(remoteRequest.RequestId, out ignored);
                     remoteRequest = null;
                 }
+                else if (remoteRequest.Promise == null)
+                {
+                    Trace.TraceError("FATAL: Concurrency Problem! Prmoise can not be null if result is not null.");
+                }
             }
             return remoteRequest;
         }

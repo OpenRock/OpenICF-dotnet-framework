@@ -146,7 +146,7 @@
         &lt;host&gt;
           &lt;baseAddresses&gt;
             &lt;!-- Remove trailing '/' otherwise response:  405 Method Not Allowed --&gt;
-            &lt;add baseAddress="http://localhost:8759/openicf" /&gt;
+            &lt;add baseAddress="http://0.0.0.0:8759/openicf" /&gt;
           &lt;/baseAddresses&gt;
         &lt;/host&gt;
       &lt;/service&gt;
@@ -201,7 +201,7 @@
     &lt;/switches&gt;
     &lt;sharedListeners&gt;
       &lt;add name="console" type="System.Diagnostics.ConsoleTraceListener" /&gt;
-      &lt;add name="file" type="System.Diagnostics.TextWriterTraceListener" initializeData="ConnectorServerService.log"
+      &lt;add name="file" type="System.Diagnostics.TextWriterTraceListener" initializeData="logs\ConnectorServerService.log"
            traceOutputOptions="DateTime"&gt;
         &lt;filter type="System.Diagnostics.EventTypeFilter" initializeData="Information" /&gt;
       &lt;/add&gt;

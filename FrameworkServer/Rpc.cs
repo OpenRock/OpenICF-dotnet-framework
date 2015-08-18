@@ -230,7 +230,9 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 {
                     if (!HandleResponseMessage(sourceConnection, message))
                     {
-                        //logger.ok("Request {0} has unknown response message type:{1}", RequestId, this.GetType().Name);
+#if DEBUG
+                        Debug.WriteLine("Request {0} has unknown response message type:{1}", RequestId, this.GetType().Name);
+#endif
                         HandleError(new ConnectorException("Unknown response message type:" + message.GetType()));
                     }
                 }
@@ -652,7 +654,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         private readonly AutoResetEvent _onMessageToSendEvent = new AutoResetEvent(true);
 
         /// <devdoc>
-        ///     <para>Adds a event handler to listen to the Disposed event on the DisposableAsyncConnectorInfoManager.</para>
+        ///     <para>Adds a event handler to listen to the Disposed event on the WebSocketConnectionHolder.</para>
         /// </devdoc>
         private event EventHandler DisposedEvent;
 
@@ -717,7 +719,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                     }
                 } while (_messageQueue.Any());
 
-                _onMessageToSendEvent.WaitOne();
+                _onMessageToSendEvent.WaitOne(TimeSpan.FromMinutes(1));
             }
 #if DEBUG
             Debug.WriteLine("Finish Writting messages over Socket:{0}", Id);
@@ -812,7 +814,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
 #if DEBUG
                 return String.Format("{1} Message - Id:[{2}] size:{0}", _message.Length, _messageType, Id);
 #else
-                return String.Format("Message - size:{0}", _message.Length, _messageType);
+                return String.Format("{1} Message - size:{0}", _message.Length, _messageType);
 #endif
             }
 

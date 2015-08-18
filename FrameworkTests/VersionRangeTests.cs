@@ -128,67 +128,31 @@ namespace FrameworkTests
 
         [Test]
         public virtual void TestConnectorKeysInRange()
-        {
-            ConnectorKeyRange rS1 =
-                ConnectorKeyRange.NewBuilder()
-                    .SetBundleName("B")
-                    .SetConnectorName("C")
-                    .SetBundleVersion("1.1.0.0-SNAPSHOT")
-                    .Build();
+        {          
             ConnectorKeyRange r1 =
                 ConnectorKeyRange.NewBuilder()
                     .SetBundleName("B")
                     .SetConnectorName("C")
-                    .SetBundleVersion("1.1.0.0-SNAPSHOT")
+                    .SetBundleVersion("1.1.0.0")
                     .Build();
 
-            ConnectorKeyRange rS2 =
-                ConnectorKeyRange.NewBuilder()
-                    .SetBundleName("B")
-                    .SetConnectorName("C")
-                    .SetBundleVersion("[1.1.0.0,1.2-SNAPSHOT]")
-                    .Build();
             ConnectorKeyRange r2 =
                 ConnectorKeyRange.NewBuilder()
                     .SetBundleName("B")
                     .SetConnectorName("C")
-                    .SetBundleVersion("[1.1.0.0,1.2]")
+                    .SetBundleVersion("[1.1.0.0,1.2.0.0]")
                     .Build();
 
-            ConnectorKey kS1 = new ConnectorKey("B", "1.1.0.0-SNAPSHOT", "C");
             ConnectorKey k1 = new ConnectorKey("B", "1.1.0.0", "C");
-            ConnectorKey kS2 = new ConnectorKey("B", "1.2.0.0-SNAPSHOT", "C");
             ConnectorKey k2 = new ConnectorKey("B", "1.2.0.0", "C");
 
-
-            Assert.IsTrue(rS1.BundleVersionRange.Exact);
             Assert.IsTrue(r1.BundleVersionRange.Exact);
-            Assert.IsFalse(rS2.BundleVersionRange.Exact);
             Assert.IsFalse(r2.BundleVersionRange.Exact);
 
-
-            Assert.IsTrue(rS1.IsInRange(kS1));
-            Assert.IsTrue(rS1.IsInRange(k1));
-            Assert.IsTrue(r1.IsInRange(kS1));
             Assert.IsTrue(r1.IsInRange(k1));
-
-            //
-
-            Assert.IsFalse(rS1.IsInRange(kS2));
-            Assert.IsFalse(rS1.IsInRange(k2));
-            Assert.IsFalse(r1.IsInRange(kS2));
             Assert.IsFalse(r1.IsInRange(k2));
 
-            //
-
-            Assert.IsTrue(rS2.IsInRange(kS1));
-            Assert.IsTrue(rS2.IsInRange(k1));
-            Assert.IsTrue(r2.IsInRange(kS1));
             Assert.IsTrue(r2.IsInRange(k1));
-
-            Assert.IsTrue(rS2.IsInRange(kS2));
-            Assert.IsTrue(rS2.IsInRange(k2));
-            Assert.IsTrue(r2.IsInRange(kS2));
             Assert.IsTrue(r2.IsInRange(k2));
 
             ConnectorKeyRange r45 =

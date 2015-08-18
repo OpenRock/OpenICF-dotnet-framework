@@ -314,7 +314,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 try
                 {
                     byte[] responseMessage = MessagesUtil.CreateErrorResponse(RequestId, error).ToByteArray();
-                    TrySendBytes(responseMessage, true);
+                    TrySendBytes(responseMessage, true).ConfigureAwait(false);
                 }
                 catch (Exception t)
                 {
@@ -599,7 +599,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 try
                 {
                     byte[] responseMessage = MessagesUtil.CreateErrorResponse(RequestId, error).ToByteArray();
-                    TrySendBytes(responseMessage, true);
+                    TrySendBytes(responseMessage, true).ConfigureAwait(false);
                 }
                 catch (Exception t)
                 {

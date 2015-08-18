@@ -88,6 +88,39 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
             }
         }
 
+        private sealed class InternalConfigurationChangeHandler : AbstractConfiguration.IConfigurationChangeCallback
+        {
+            private readonly APIConfigurationImpl _apiConfiguration;
+            private readonly Configuration _configuration;
+
+            public InternalConfigurationChangeHandler(APIConfigurationImpl apiConfiguration, Configuration configuration)
+            {
+                _apiConfiguration = apiConfiguration;
+                _configuration = configuration;
+            }
+
+            public void NotifyUpdate()
+            {
+                try
+                {
+                    IConfigurationPropertyChangeListener listener = _apiConfiguration.ChangeListener;
+                    if (null != listener)
+                    {
+                        IList<ConfigurationProperty> diff =
+                            CSharpClassProperties.CalculateDiff(_apiConfiguration.ConfigurationProperties, _configuration);
+                        if (diff.Count > 0)
+                        {
+                            listener.ConfigurationPropertyChange(diff);
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    TraceUtil.TraceException("Configuration change notification is failed for" + _configuration.GetType(), e);
+                }
+            }
+        }
+
         private class ConnectorPoolHandler : ObjectPoolHandler<PoolableConnector>
         {
             private readonly APIConfigurationImpl _apiConfiguration;
@@ -126,8 +159,17 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
                     Configuration config = null;
                     if (null == _context)
                     {
-                        config = CSharpClassProperties.CreateBean((ConfigurationPropertiesImpl)_apiConfiguration.ConfigurationProperties,
-                    _localInfo.ConnectorConfigurationClass);
+                        config =
+                            CSharpClassProperties.CreateBean(
+                                (ConfigurationPropertiesImpl) _apiConfiguration.ConfigurationProperties,
+                                _localInfo.ConnectorConfigurationClass);
+                        if (null != _apiConfiguration.ChangeListener
+                            && config is AbstractConfiguration)
+                        {
+                            ((AbstractConfiguration) config)
+                                .AddChangeCallback(new InternalConfigurationChangeHandler(
+                                    _apiConfiguration, config));
+                        }
                     }
                     else
                     {
@@ -262,6 +304,53 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
     #region CSharpClassProperties
     internal static class CSharpClassProperties
     {
+
+        /// <summary>
+        /// Calculate the difference between the given config and the properties.
+        /// </summary>
+        /// <param name="properties"> </param>
+        /// <param name="config">
+        /// @return </param>
+        /// <exception cref="Exception"> </exception>
+        public static IList<ConfigurationProperty> CalculateDiff(ConfigurationProperties properties,
+            Configuration config)
+        {
+            SafeType<Configuration> configType = SafeType<Configuration>.ForRawType(config.GetType());
+            IDictionary<string, PropertyInfo> descriptors = GetFilteredProperties(configType);
+            IList<ConfigurationProperty> result = new List<ConfigurationProperty>();
+            var propertiesImpl = properties as ConfigurationPropertiesImpl;
+            if (null != propertiesImpl)
+            {
+                foreach (ConfigurationPropertyImpl property in propertiesImpl.Properties)
+                {
+                    string name = property.Name;
+                    PropertyInfo desc = descriptors[name];
+                    if (desc == null)
+                    {
+                        continue;
+                    }
+                    object oldValue = property.Value;
+                    try
+                    {
+                        object newValue = desc.GetValue(config);
+                        if (!CollectionUtil.Equals(oldValue, newValue))
+                        {
+                            ConfigurationPropertyImpl change = new ConfigurationPropertyImpl(property)
+                            {
+                                Value = SerializerUtil.CloneObject(newValue)
+                            };
+                            result.Add(change);
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        //Ignore
+                    }
+                }
+            }
+            return result;
+        }
+
         public static ConfigurationPropertiesImpl
         CreateConfigurationProperties(Configuration defaultObject)
         {
@@ -867,6 +956,13 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local
             {
                 operationalContext = new ConnectorOperationalContext(connectorInfo, GetAPIConfiguration());
             }
+        }
+
+        public LocalConnectorFacadeImpl(
+            LocalConnectorInfoImpl connectorInfo, String config, IConfigurationPropertyChangeListener changeListener)
+            : this(connectorInfo, config)
+        {
+            GetAPIConfiguration().ChangeListener = changeListener;
         }
 
         public void Dispose()

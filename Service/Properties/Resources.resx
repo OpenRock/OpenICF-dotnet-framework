@@ -118,7 +118,7 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="DefaultConfig" xml:space="preserve">
-    <value>&lt;?xml version="1.0" encoding="utf-8" ?&gt;
+    <value>&lt;?xml version="1.0" encoding="utf-8"?&gt;
 &lt;configuration&gt;
   &lt;runtime&gt;
     &lt;loadFromRemoteSources enabled="true"/&gt;
@@ -133,12 +133,12 @@
     &lt;!-- access these values via the property:
             System.Configuration.ConfigurationManager.AppSettings[key]
      --&gt;
-    &lt;add key="connectorserver.port" value="8759" /&gt;
-    &lt;add key="connectorserver.usessl" value="false" /&gt;
-    &lt;add key="connectorserver.certificatestorename" value="ConnectorServerSSLCertificate" /&gt;
-    &lt;add key="connectorserver.ifaddress" value="0.0.0.0" /&gt;
-    &lt;add key="connectorserver.maxFacadeLifeTime" value="0" /&gt;
-    &lt;add key="connectorserver.key" value="lmA6bMfENJGlIDbfrVtklXFK32s=" /&gt;
+    &lt;add key="connectorserver.port" value="8760"/&gt;
+    &lt;add key="connectorserver.usessl" value="false"/&gt;
+    &lt;add key="connectorserver.certificatestorename" value="ConnectorServerSSLCertificate"/&gt;
+    &lt;add key="connectorserver.ifaddress" value="0.0.0.0"/&gt;
+    &lt;add key="connectorserver.maxFacadeLifeTime" value="0"/&gt;
+    &lt;add key="connectorserver.key" value="lmA6bMfENJGlIDbfrVtklXFK32s="/&gt;
     &lt;!--
             Enable/Disable the logging proxy for all operations.
         --&gt;
@@ -147,22 +147,22 @@
   &lt;system.diagnostics&gt;
     &lt;trace autoflush="true" indentsize="4"&gt;
       &lt;listeners&gt;
-        &lt;remove name="Default" /&gt;
-        &lt;add name="console" /&gt;
-        &lt;add name="file" /&gt;
+        &lt;remove name="Default"/&gt;
+        &lt;add name="console"/&gt;
+        &lt;add name="file"/&gt;
       &lt;/listeners&gt;
     &lt;/trace&gt;
     &lt;sources&gt;
       &lt;source name="ConnectorServer" switchName="switch1"&gt;
         &lt;listeners&gt;
-          &lt;remove name="Default" /&gt;
-          &lt;add name="file" /&gt;
+          &lt;remove name="Default"/&gt;
+          &lt;add name="file"/&gt;
         &lt;/listeners&gt;
       &lt;/source&gt;
       &lt;source name="MyClass2" switchName="switch2"&gt;
         &lt;listeners&gt;
-          &lt;remove name="Default" /&gt;
-          &lt;add name="file" /&gt;
+          &lt;remove name="Default"/&gt;
+          &lt;add name="file"/&gt;
         &lt;/listeners&gt;
       &lt;/source&gt;
     &lt;/sources&gt;
@@ -171,13 +171,9 @@
       &lt;add name="switch2" value="Warning"/&gt;
     &lt;/switches&gt;
     &lt;sharedListeners&gt;
-      &lt;add name="console"
-           type="System.Diagnostics.ConsoleTraceListener"&gt;
+      &lt;add name="console" type="System.Diagnostics.ConsoleTraceListener"&gt;
       &lt;/add&gt;
-      &lt;add name="file"
-           type="System.Diagnostics.TextWriterTraceListener"
-           initializeData="connectorserver.log"
-           traceOutputOptions="DateTime"&gt;
+      &lt;add name="file" type="System.Diagnostics.TextWriterTraceListener" initializeData="logs\connectorserver.log" traceOutputOptions="DateTime"&gt;
         &lt;filter type="System.Diagnostics.EventTypeFilter" initializeData="Information"/&gt;
       &lt;/add&gt;
     &lt;/sharedListeners&gt;

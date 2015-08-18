@@ -277,6 +277,13 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Remote
             remoteConnectorFacadeKey = GenerateRemoteConnectorFacadeKey(GetAPIConfiguration());
         }
 
+        public RemoteConnectorFacadeImpl(RemoteConnectorInfoImpl connectorInfo, String config,
+            IConfigurationPropertyChangeListener changeListener)
+            : this(connectorInfo, config)
+        {
+            GetAPIConfiguration().ChangeListener = changeListener;
+        }
+
         private static string GenerateRemoteConnectorFacadeKey(APIConfigurationImpl configuration)
         {
             APIConfigurationImpl copy = new APIConfigurationImpl(configuration);

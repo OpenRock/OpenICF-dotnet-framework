@@ -29,6 +29,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Security.Principal;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
@@ -246,7 +247,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 catch (Exception ignore)
                 {
 #if DEBUG
-                    StringBuilder sb = new StringBuilder("Failed to notify onNewWebSocketConnectionGroup - ");
+                    System.Text.StringBuilder sb = new System.Text.StringBuilder("Failed to notify onNewWebSocketConnectionGroup - ");
                     TraceUtil.ExceptionToString(sb, ignore, String.Empty);
                     Debug.WriteLine(sb.ToString());
 #endif
@@ -1446,121 +1447,139 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
         {
             Debug.WriteLine("IN Request({0}:{1})", messageId,
                 socket.RemoteConnectionContext.RemotePrincipal.Identity.Name);
-            Org.ForgeRock.OpenICF.Common.ProtoBuf.ConnectorKey connectorKey = message.ConnectorKey;
 
-            API.ConnectorInfo info = FindConnectorInfo(connectorKey);
-            if (info == null)
+            String connectorFacadeKey = message.ConnectorFacadeKey.ToStringUtf8();
+
+            if (null != message.ConfigurationChangeEvent)
             {
-                PRB.RemoteMessage response = MessagesUtil.CreateErrorResponse(messageId,
-                    new ConnectorException("Connector not found: " + connectorKey + " "));
-                socket.RemoteConnectionContext.RemoteConnectionGroup.TrySendMessage(response);
-                return;
+                ICollection<Object> rawChanges =
+                    MessagesUtil.DeserializeLegacy<ICollection<Object>>(message.ConfigurationChangeEvent
+                        .ConfigurationPropertyChange);
+                IList<API.ConfigurationProperty> changes =
+                    CollectionUtil.NewList<Object, API.ConfigurationProperty>(rawChanges);
+                socket.RemoteConnectionContext.RemoteConnectionGroup
+                    .NotifyConfigurationChangeListener(connectorFacadeKey, changes);
             }
-
-            try
+            else
             {
+                Org.ForgeRock.OpenICF.Common.ProtoBuf.ConnectorKey connectorKey = message.ConnectorKey;
+
+                API.ConnectorInfo info = FindConnectorInfo(connectorKey);
+                if (info == null)
+                {
+                    PRB.RemoteMessage response = MessagesUtil.CreateErrorResponse(messageId,
+                        new ConnectorException("Connector not found: " + connectorKey + " "));
+                    socket.RemoteConnectionContext.RemoteConnectionGroup.TrySendMessage(response);
+                    return;
+                }
+
                 try
                 {
-                    if (null != message.Locale)
+                    try
                     {
-                        CultureInfo local = MessagesUtil.DeserializeMessage<CultureInfo>(message.Locale);
-                        Thread.CurrentThread.CurrentUICulture = local;
+                        if (null != message.Locale)
+                        {
+                            CultureInfo local = MessagesUtil.DeserializeMessage<CultureInfo>(message.Locale);
+                            Thread.CurrentThread.CurrentUICulture = local;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        TraceUtil.TraceException("Failed to set request CultureInfo", e);
+                    }
+
+                    API.ConnectorFacade connectorFacade = NewInstance(socket, info, connectorFacadeKey);
+
+                    if (null != message.AuthenticateOpRequest)
+                    {
+                        AuthenticationAsyncApiOpImpl.CreateProcessor(messageId, socket, message.AuthenticateOpRequest)
+                            .Execute(connectorFacade);
+                    }
+                    else if (null != message.CreateOpRequest)
+                    {
+                        CreateAsyncApiOpImpl.CreateProcessor(messageId, socket, message.CreateOpRequest)
+                            .Execute(connectorFacade);
+                    }
+                    else if (null != message.ConnectorEventSubscriptionOpRequest)
+                    {
+                        ConnectorEventSubscriptionApiOpImpl.CreateProcessor(messageId, socket,
+                            message.ConnectorEventSubscriptionOpRequest).Execute(connectorFacade);
+                    }
+                    else if (null != message.DeleteOpRequest)
+                    {
+                        DeleteAsyncApiOpImpl.CreateProcessor(messageId, socket, message.DeleteOpRequest)
+                            .Execute(connectorFacade);
+                    }
+                    else if (null != message.GetOpRequest)
+                    {
+                        GetAsyncApiOpImpl.CreateProcessor(messageId, socket, message.GetOpRequest)
+                            .Execute(connectorFacade);
+                    }
+                    else if (null != message.ResolveUsernameOpRequest)
+                    {
+                        ResolveUsernameAsyncApiOpImpl.CreateProcessor(messageId, socket,
+                            message.ResolveUsernameOpRequest)
+                            .Execute(connectorFacade);
+                    }
+                    else if (null != message.SchemaOpRequest)
+                    {
+                        SchemaAsyncApiOpImpl.CreateProcessor(messageId, socket, message.SchemaOpRequest)
+                            .Execute(connectorFacade);
+                    }
+                    else if (null != message.ScriptOnConnectorOpRequest)
+                    {
+                        ScriptOnConnectorAsyncApiOpImpl.CreateProcessor(messageId, socket,
+                            message.ScriptOnConnectorOpRequest).Execute(connectorFacade);
+                    }
+                    else if (null != message.ScriptOnResourceOpRequest)
+                    {
+                        ScriptOnResourceAsyncApiOpImpl.CreateProcessor(messageId, socket,
+                            message.ScriptOnResourceOpRequest)
+                            .Execute(connectorFacade);
+                    }
+                    else if (null != message.SearchOpRequest)
+                    {
+                        SearchAsyncApiOpImpl.CreateProcessor(messageId, socket, message.SearchOpRequest)
+                            .Execute(connectorFacade);
+                    }
+                    else if (null != message.SyncOpRequest)
+                    {
+                        SyncAsyncApiOpImpl.CreateProcessor(messageId, socket, message.SyncOpRequest)
+                            .Execute(connectorFacade);
+                    }
+                    else if (null != message.SyncEventSubscriptionOpRequest)
+                    {
+                        SyncEventSubscriptionApiOpImpl.CreateProcessor(messageId, socket,
+                            message.SyncEventSubscriptionOpRequest).Execute(connectorFacade);
+                    }
+                    else if (null != message.TestOpRequest)
+                    {
+                        TestAsyncApiOpImpl.CreateProcessor(messageId, socket, message.TestOpRequest)
+                            .Execute(connectorFacade);
+                    }
+                    else if (null != message.UpdateOpRequest)
+                    {
+                        UpdateAsyncApiOpImpl.CreateProcessor(messageId, socket, message.UpdateOpRequest)
+                            .Execute(connectorFacade);
+                    }
+                    else if (null != message.ValidateOpRequest)
+                    {
+                        ValidateAsyncApiOpImpl.CreateProcessor(messageId, socket, message.ValidateOpRequest)
+                            .Execute(connectorFacade);
+                    }
+                    else
+                    {
+                        socket.RemoteConnectionContext.RemoteConnectionGroup.TrySendMessage(
+                            MessagesUtil.CreateErrorResponse(messageId,
+                                new ConnectorException("Unknown OperationRequest")));
                     }
                 }
-                catch (Exception e)
+                catch (Exception t)
                 {
-                    TraceUtil.TraceException("Failed to set request CultureInfo", e);
-                }
-
-                string connectorFacadeKey = message.ConnectorFacadeKey.ToStringUtf8();
-
-                API.ConnectorFacade connectorFacade = NewInstance(info, connectorFacadeKey);
-
-                if (null != message.AuthenticateOpRequest)
-                {
-                    AuthenticationAsyncApiOpImpl.CreateProcessor(messageId, socket, message.AuthenticateOpRequest)
-                        .Execute(connectorFacade);
-                }
-                else if (null != message.CreateOpRequest)
-                {
-                    CreateAsyncApiOpImpl.CreateProcessor(messageId, socket, message.CreateOpRequest)
-                        .Execute(connectorFacade);
-                }
-                else if (null != message.ConnectorEventSubscriptionOpRequest)
-                {
-                    ConnectorEventSubscriptionApiOpImpl.CreateProcessor(messageId, socket,
-                        message.ConnectorEventSubscriptionOpRequest).Execute(connectorFacade);
-                }
-                else if (null != message.DeleteOpRequest)
-                {
-                    DeleteAsyncApiOpImpl.CreateProcessor(messageId, socket, message.DeleteOpRequest)
-                        .Execute(connectorFacade);
-                }
-                else if (null != message.GetOpRequest)
-                {
-                    GetAsyncApiOpImpl.CreateProcessor(messageId, socket, message.GetOpRequest).Execute(connectorFacade);
-                }
-                else if (null != message.ResolveUsernameOpRequest)
-                {
-                    ResolveUsernameAsyncApiOpImpl.CreateProcessor(messageId, socket, message.ResolveUsernameOpRequest)
-                        .Execute(connectorFacade);
-                }
-                else if (null != message.SchemaOpRequest)
-                {
-                    SchemaAsyncApiOpImpl.CreateProcessor(messageId, socket, message.SchemaOpRequest)
-                        .Execute(connectorFacade);
-                }
-                else if (null != message.ScriptOnConnectorOpRequest)
-                {
-                    ScriptOnConnectorAsyncApiOpImpl.CreateProcessor(messageId, socket,
-                        message.ScriptOnConnectorOpRequest).Execute(connectorFacade);
-                }
-                else if (null != message.ScriptOnResourceOpRequest)
-                {
-                    ScriptOnResourceAsyncApiOpImpl.CreateProcessor(messageId, socket, message.ScriptOnResourceOpRequest)
-                        .Execute(connectorFacade);
-                }
-                else if (null != message.SearchOpRequest)
-                {
-                    SearchAsyncApiOpImpl.CreateProcessor(messageId, socket, message.SearchOpRequest)
-                        .Execute(connectorFacade);
-                }
-                else if (null != message.SyncOpRequest)
-                {
-                    SyncAsyncApiOpImpl.CreateProcessor(messageId, socket, message.SyncOpRequest)
-                        .Execute(connectorFacade);
-                }
-                else if (null != message.SyncEventSubscriptionOpRequest)
-                {
-                    SyncEventSubscriptionApiOpImpl.CreateProcessor(messageId, socket,
-                        message.SyncEventSubscriptionOpRequest).Execute(connectorFacade);
-                }
-                else if (null != message.TestOpRequest)
-                {
-                    TestAsyncApiOpImpl.CreateProcessor(messageId, socket, message.TestOpRequest)
-                        .Execute(connectorFacade);
-                }
-                else if (null != message.UpdateOpRequest)
-                {
-                    UpdateAsyncApiOpImpl.CreateProcessor(messageId, socket, message.UpdateOpRequest)
-                        .Execute(connectorFacade);
-                }
-                else if (null != message.ValidateOpRequest)
-                {
-                    ValidateAsyncApiOpImpl.CreateProcessor(messageId, socket, message.ValidateOpRequest)
-                        .Execute(connectorFacade);
-                }
-                else
-                {
+                    TraceUtil.TraceException("Failed handle OperationRequest " + messageId, t);
                     socket.RemoteConnectionContext.RemoteConnectionGroup.TrySendMessage(
-                        MessagesUtil.CreateErrorResponse(messageId, new ConnectorException("Unknown OperationRequest")));
+                        MessagesUtil.CreateErrorResponse(messageId, t));
                 }
-            }
-            catch (Exception t)
-            {
-                TraceUtil.TraceException("Failed handle OperationRequest " + messageId, t);
-                socket.RemoteConnectionContext.RemoteConnectionGroup.TrySendMessage(
-                    MessagesUtil.CreateErrorResponse(messageId, t));
             }
         }
 
@@ -1610,9 +1629,11 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             return Client ? "Client" : "Server";
         }
 
-        public virtual API.ConnectorFacade NewInstance(API.ConnectorInfo connectorInfo, string config)
+        public virtual API.ConnectorFacade NewInstance(WebSocketConnectionHolder socket, API.ConnectorInfo connectorInfo,
+            string config)
         {
-            return _connectorFramework.NewManagedInstance(connectorInfo, config);
+            return _connectorFramework.NewManagedInstance(connectorInfo, config,
+                new RemoteConfigurationChangeListener(socket, connectorInfo, config));
         }
 
         public virtual API.ConnectorInfo FindConnectorInfo(Org.ForgeRock.OpenICF.Common.ProtoBuf.ConnectorKey key)
@@ -1620,6 +1641,45 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             return
                 _connectorInfoManager.FindConnectorInfo(new API.ConnectorKey(key.BundleName, key.BundleVersion,
                     key.ConnectorName));
+        }
+
+        private class RemoteConfigurationChangeListener : API.IConfigurationPropertyChangeListener
+        {
+            private readonly WebSocketConnectionHolder socket;
+            private readonly API.ConnectorInfo connectorInfo;
+            private readonly string config;
+
+            public RemoteConfigurationChangeListener(WebSocketConnectionHolder socket, API.ConnectorInfo connectorInfo,
+                string config)
+            {
+                this.socket = socket;
+                this.connectorInfo = connectorInfo;
+                this.config = config;
+            }
+
+            public virtual void ConfigurationPropertyChange(IList<API.ConfigurationProperty> changes)
+            {
+                try
+                {
+                    PRB.RemoteMessage request = MessagesUtil.CreateRequest(0, new PRB.RPCRequest
+                    {
+                        OperationRequest = new PRB.OperationRequest
+                        {
+                            ConnectorFacadeKey = ByteString.CopyFromUtf8(config),
+                            ConfigurationChangeEvent = new PRB.ConfigurationChangeEvent
+                            {
+                                ConfigurationPropertyChange = MessagesUtil.SerializeLegacy(changes)
+                            }
+                        }
+                    });
+
+                    socket.RemoteConnectionContext.RemoteConnectionGroup.TrySendMessage(request);
+                }
+                catch (Exception t)
+                {
+                    TraceUtil.TraceException("Failed to send ConfigurationChangeEvent event: " + connectorInfo, t);
+                }
+            }
         }
     }
 
@@ -1908,7 +1968,8 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                         context.RemoteConnectionGroup.FindConnectorInfo(GetAPIConfiguration().ConnectorInfo.ConnectorKey);
                         if (null != GetAPIConfiguration().ChangeListener)
                         {
-                            //context.RemoteConnectionGroup.AddConfigurationChangeListener(ConnectorFacadeKey, GetAPIConfiguration().ChangeListener);
+                            context.RemoteConnectionGroup.AddConfigurationChangeListener(ConnectorFacadeKey,
+                                GetAPIConfiguration().ChangeListener);
                         }
                         return facadeKey;
                     };

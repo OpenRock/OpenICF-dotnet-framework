@@ -133,12 +133,18 @@ namespace Org.ForgeRock.OpenICF.Framework
 
         public virtual ConnectorFacade NewManagedInstance(ConnectorInfo connectorInfo, string config)
         {
+            return NewManagedInstance(connectorInfo, config, null);
+        }
+
+        public virtual ConnectorFacade NewManagedInstance(ConnectorInfo connectorInfo, string config,
+            IConfigurationPropertyChangeListener changeListener)
+        {
             ConnectorFacade facade;
             _managedFacadeCache.TryGetValue(config, out facade);
             if (null == facade)
             {
                 // new ConnectorFacade creation must remain cheap operation
-                facade = NewInstance(connectorInfo, config);
+                facade = NewInstance(connectorInfo, config, changeListener);
                 if (facade is LocalConnectorFacadeImpl)
                 {
                     ConnectorFacade ret = _managedFacadeCache.GetOrAdd(facade.ConnectorFacadeKey, facade);
@@ -182,13 +188,19 @@ namespace Org.ForgeRock.OpenICF.Framework
 
         public ConnectorFacade NewInstance(ConnectorInfo connectorInfo, string config)
         {
+            return NewInstance(connectorInfo, config, null);
+        }
+
+        public ConnectorFacade NewInstance(ConnectorInfo connectorInfo, string config,
+            IConfigurationPropertyChangeListener changeListener)
+        {
             ConnectorFacade ret;
             if (connectorInfo is LocalConnectorInfoImpl)
             {
                 try
                 {
                     // create a new Provisioner.
-                    ret = new LocalConnectorFacadeImpl((LocalConnectorInfoImpl) connectorInfo, config);
+                    ret = new LocalConnectorFacadeImpl((LocalConnectorInfoImpl) connectorInfo, config, changeListener);
                 }
                 catch (Exception)
                 {
@@ -201,7 +213,8 @@ namespace Org.ForgeRock.OpenICF.Framework
             {
                 ret =
                     new RemoteConnectorFacadeImpl(
-                        (Org.IdentityConnectors.Framework.Impl.Api.Remote.RemoteConnectorInfoImpl) connectorInfo, config);
+                        (Org.IdentityConnectors.Framework.Impl.Api.Remote.RemoteConnectorInfoImpl) connectorInfo, config,
+                        changeListener);
             }
             else if (connectorInfo is Org.ForgeRock.OpenICF.Framework.Remote.RemoteConnectorInfoImpl)
             {
@@ -210,6 +223,8 @@ namespace Org.ForgeRock.OpenICF.Framework
                     (APIConfigurationImpl)
                         SerializerUtil.DeserializeBase64Object(Assertions.NullChecked(config, "configuration"));
                 configuration.ConnectorInfo = (Remote.RemoteConnectorInfoImpl) connectorInfo;
+
+                configuration.ChangeListener = changeListener;
                 ret = NewInstance(configuration);
             }
             else

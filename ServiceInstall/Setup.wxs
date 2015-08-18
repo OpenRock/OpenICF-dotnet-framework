@@ -1,141 +1,267 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
-     xmlns:ui="http://schemas.microsoft.com/wix/UIExtension"
-     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension"
-     xmlns:netfx="http://schemas.microsoft.com/wix/NetFxExtension">
-	<Product Id="*"
-		Name="OpenICF Connector Server"
-		Language="1033"
-		Version="!(bind.FileVersion.Framework.dll)"
-		UpgradeCode="2C19FE30-F6A7-482D-A50F-C1E64D34C024"
-		Manufacturer="ForgeRock">
-		<Package Description="Version: !(bind.FileVersion.Framework.dll)"
-			Comments="OpenICF Connector Server Installer"
-			InstallerVersion="200"
-			Compressed="yes"/>
-		<!--
-			Source media for the installation. 
- 			Specifies a single cab file to be embedded in the installer's .msi. 
-		-->
-		<Media Id="1" Cabinet="contents.cab" EmbedCab="yes" CompressionLevel="high"/>
-		
-		<!-- Installation directory and files are defined in Files.wxs -->
-		<Directory Id="TARGETDIR" Name="SourceDir"/>
-		
-		<Feature Id="Complete"
-		         Title="Service"
-		         Description="OpenICF Connector Server Service"
-             AllowAdvertise="no"
-             Display='expand'
-		         Level="1"
-		         ConfigurableDirectory="INSTALLDIR">
-      <ComponentGroupRef Id="ConnectorServerComponents" />
-      <ComponentGroupRef Id="LegalFilesComponents" />
-      <Feature Id="Legacy"
-          Title="Legacy Service"
-          Description="Legacy Connector Server Service"
-          Level="0"
-          ConfigurableDirectory="INSTALLDIR">
-        <ComponentGroupRef Id="LegacyConnectorServerComponents" />
-      </Feature>
-		</Feature>
-		
-		<!-- 
-			Using the Wix UI library
- 
-			WixUI_Mondo includes the full set of dialogs:
- 			
-			welcome
-			license agreement
-			setup type (typical, custom, and complete)
-			feature customization
-			directory browse
-			disk cost. 
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="10D493AD-64C4-4166-BB06-B72A305AD707"
+             Name="OpenICF Connector Server"
+             Language="1033"
+             Codepage="1252"
+             Version="!(bind.FileVersion.Framework.dll)"
+             UpgradeCode="2C19FE30-F6A7-482D-A50F-C1E64D34C024"
+             Manufacturer="ForgeRock">
+        <Package Id="*" Description="OpenICF Version: !(bind.FileVersion.Framework.dll) Installer"
+                 Comments="OpenICF Connector Server Installer"
+                 InstallerVersion="200"
+                 Compressed="yes"/>
+        <!--
+            Source media for the installation. 
+             Specifies a single cab file to be embedded in the installer's .msi. 
+        -->
+        <Media Id="1" Cabinet="contents.cab" EmbedCab="yes" CompressionLevel="high"/>
 
-			Maintenance-mode dialogs are also included. 
+        <!-- Installation directory and files are defined in Files.wxs -->
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFilesFolder" Name="PFiles">
+                <Directory Id="ForgeRock" Name="ForgeRock">
+                    <Directory Id="INSTALLDIR" Name="OpenICF">
+                        <Directory Id="LegalFolder" Name="legal-notices">
+                            <Component Id="LegalNotices" Guid="84d57160-13d5-11e4-9191-0800200c9a66" DiskId="1">
+                                <RemoveFolder Id='LogFolder' On='uninstall'/>
+                                <File Source="$(var.SolutionDir)legal\CDDLv1.txt" Name="CDDLv1.txt"/>
+                                <File Source="$(var.SolutionDir)legal\ForgeRock_License.txt"
+                                      Name="ForgeRock_License.txt"/>
+                            </Component>
+                        </Directory>
+                        <Directory Id="LogFolder" Name="logs">
+                            <Component Id="LogFolderComponent" Guid="1492805a-6262-4105-9a91-f8070674ed27"
+                                       SharedDllRefCount="no" KeyPath="no" NeverOverwrite="no" Permanent="no"
+                                       Transitive="no"
+                                       Win64="no" Location="either">
+                                <CreateFolder/>
+                            </Component>
+                        </Directory>
 
-			Use WixUI_Mondo when you have some of your product's features 
-			are not installed by default and there is a meaningful 
-			difference between typical and complete installs
-		-->  
-		<!-- UI information-->
-	    <Property Id="ARPPRODUCTICON" Value="_FileID_Icon.ico" />
-	    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
-	    <Property Id="WIXUI_ARPNOMODIFY" Value="yes" Secure="yes" />
-	    <!--UIRef Id="WixUI_InstallDir" />
-	    <UIRef Id="WixUI_ErrorProgressText" /-->
+                        <Component Id="ConnectorFrameworkLibrariesComponent" Guid="44B1D394-282A-43A4-B89D-E9BC4286191F"
+                                   DiskId="1">
+                            <File Source="$(var.Common.TargetPath)"
+                                  Name="$(var.Common.TargetFileName)"/>
+                            <File Source="$(var.Common.TargetDir)Common.pdb"
+                                  Name="Common.pdb"/>
 
-	    <!-- WixUILicenseRtf: License file. -->
-	    <WixVariable Id="WixUILicenseRtf" Value="Resources\product_License.rtf" />
-	    <!-- WixUIBannerBmp: 493 by 58 pixels, this bitmap will appear at the top of all but the first page of the installer. -->
-	    <WixVariable Id="WixUIBannerBmp" Value="Resources\setupBanner.bmp" />
-	    <!-- WixUIDialogBmp: 493 by 312 pixels, this bitmap will appear on the first page of the installer. -->
-	    <WixVariable Id="WixUIDialogBmp" Value="Resources\setupDialog.bmp" />
-	    <Icon Id="_FileID_Icon.ico" SourceFile="Resources\FR_ICF_sq_med.ico"/>
-		
-		<PropertyRef Id="NETFRAMEWORK45" />
-		<Condition Message="This setup requires the .NET Framework 4.5 to be installed.">
-		   <![CDATA[NETFRAMEWORK45]]>
-		</Condition>
-		<UI>
-		<UIRef Id="WixUI_Common"/>
-		<TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
-            <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
-            <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+                            <File Source="$(var.Framework.TargetPath)"
+                                  Name="$(var.Framework.TargetFileName)"/>
+                            <File Source="$(var.Framework.TargetDir)Framework.pdb"
+                                  Name="Framework.pdb"/>
 
-            <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
-            <Property Id="WixUI_Mode" Value="Mondo" />
+                            <File Source="$(var.TestCommon.TargetPath)"
+                                  Name="$(var.TestCommon.TargetFileName)"/>
+                            <File Source="$(var.TestCommon.TargetDir)TestCommon.pdb"
+                                  Name="TestCommon.pdb"/>
 
-            <DialogRef Id="ErrorDlg" />
-            <DialogRef Id="FatalError" />
-            <DialogRef Id="FilesInUse" />
-            <DialogRef Id="MsiRMFilesInUse" />
-            <DialogRef Id="PrepareDlg" />
-            <DialogRef Id="ProgressDlg" />
-            <DialogRef Id="ResumeDlg" />
-            <DialogRef Id="UserExit" />
+                            <File Source="$(var.FrameworkInternal.TargetPath)"
+                                  Name="$(var.FrameworkInternal.TargetFileName)" Checksum="yes" KeyPath="yes"/>
+                            <File Source="$(var.FrameworkInternal.TargetDir)FrameworkInternal.pdb"
+                                  Name="FrameworkInternal.pdb"/>
+                        </Component>
 
-            <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+                        <Component Id="LegacyConnectorServerServiceComponent"
+                                   Guid="E66891C5-C96A-4A78-8E4B-D2C2F7F1D37F"
+                                   DiskId="1">
 
-            <Publish Dialog="MyWelcomeDlg" Control="Next" Event="NewDialog" Value="SetupTypeDlg">1</Publish>
+                            <File Source="$(var.Service.TargetDir)ConnectorServer.exe.config"
+                                  Name="ConnectorServer.exe.config"/>
+                            <File Source="$(var.Service.TargetDir)ConnectorServer.pdb"
+                                  Name="ConnectorServer.pdb"/>
+                            <File Source="$(var.Service.TargetPath)"
+                                  Name="ConnectorServer.exe" Checksum="yes" KeyPath="yes"/>
 
-            <Publish Dialog="SetupTypeDlg" Control="Back" Event="NewDialog" Value="MyWelcomeDlg">1</Publish>
-            <Publish Dialog="SetupTypeDlg" Control="TypicalButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
-            <Publish Dialog="SetupTypeDlg" Control="CustomButton" Event="NewDialog" Value="CustomizeDlg">1</Publish>
-            <Publish Dialog="SetupTypeDlg" Control="CompleteButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+                            <ServiceInstall Id="LegacyConnectorServerServiceInstall" Name="LegacyConnectorServerService"
+                                            DisplayName="OpenICF Legacy Connector Server" Type="ownProcess"
+                                            Start="demand"
+                                            ErrorControl="normal" Description="OpenICF Legacy Connector Server"
+                                            Account="[SERVICEACCOUNT]"
+                                            Password="[SERVICEPASSWORD]" Arguments="/service" Vital="yes">
+                            </ServiceInstall>
+                            <ServiceControl Id="StartLegacyConnectorServerServiceControl"
+                                            Name="LegacyConnectorServerService"
+                                            Start="install" Wait="no"/>
+                            <ServiceControl Id="StopLegacyConnectorServerServiceControl"
+                                            Name="LegacyConnectorServerService"
+                                            Stop="both" Wait="yes" Remove="uninstall"/>
+                        </Component>
 
-            <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="1">WixUI_InstallMode = "Change"</Publish>
-            <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="SetupTypeDlg" Order="2">WixUI_InstallMode = "InstallCustom"</Publish>
-            <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+                        <Component Id="ConnectorServerServiceComponent" Guid="8B1F7E82-46D7-4F88-A1FA-44FCBF7E685F"
+                                   DiskId="1">
 
-            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg" Order="1">WixUI_InstallMode = "InstallCustom"</Publish>
-            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="SetupTypeDlg" Order="2">WixUI_InstallMode = "InstallTypical" OR WixUI_InstallMode = "InstallComplete"</Publish>
-            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg" Order="3">WixUI_InstallMode = "Change"</Publish>
-            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="4">WixUI_InstallMode = "Repair" OR WixUI_InstallMode = "Remove"</Publish>
+                            <File Source="$(var.ConnectorServerService.TargetDir)crypto.dll"
+                                  Name="crypto.dll"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)crypto.xml"
+                                  Name="crypto.xml"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)FrameworkProtoBuf.dll"
+                                  Name="FrameworkProtoBuf.dll"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)FrameworkProtoBuf.pdb"
+                                  Name="FrameworkProtoBuf.pdb"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)FrameworkRpc.dll"
+                                  Name="FrameworkRpc.dll"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)FrameworkRpc.pdb"
+                                  Name="FrameworkRpc.pdb"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)FrameworkServer.dll"
+                                  Name="FrameworkServer.dll"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)FrameworkServer.pdb"
+                                  Name="FrameworkServer.pdb"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)Google.Protobuf.dll"
+                                  Name="Google.Protobuf.dll"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)Google.Protobuf.pdb"
+                                  Name="Google.Protobuf.pdb"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)System.Threading.Tasks.Dataflow.dll"
+                                  Name="System.Threading.Tasks.Dataflow.dll"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)System.Threading.Tasks.Dataflow.xml"
+                                  Name="System.Threading.Tasks.Dataflow.xml"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)vtortola.WebSockets.dll"
+                                  Name="vtortola.WebSockets.dll"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)vtortola.WebSockets.Rfc6455.dll"
+                                  Name="vtortola.WebSockets.Rfc6455.dll"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)WcfServiceLibrary.dll"
+                                  Name="WcfServiceLibrary.dll"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)WcfServiceLibrary.pdb"
+                                  Name="WcfServiceLibrary.pdb"/>
 
-            <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+                            <File Source="$(var.ConnectorServerService.TargetDir)ConnectorServerService.exe.config"
+                                  Name="ConnectorServerService.exe.config"/>
+                            <File Source="$(var.ConnectorServerService.TargetDir)ConnectorServerService.pdb"
+                                  Name="ConnectorServerService.pdb"/>
+                            <File Source="$(var.ConnectorServerService.TargetPath)"
+                                  Name="ConnectorServerService.exe" Checksum="yes" KeyPath="yes"/>
 
-            <Publish Dialog="MaintenanceTypeDlg" Control="ChangeButton" Event="NewDialog" Value="CustomizeDlg">1</Publish>
-            <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
-            <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
-            <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
-            
-            <Dialog Id="MyWelcomeDlg" Width="370" Height="270" Title="!(loc.WelcomeDlg_Title)">
-                <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)" />
-                <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
-                    <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
-                </Control>
-                <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="!(loc.WelcomeDlgBitmap)" />
-                <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Disabled="yes" Text="!(loc.WixUIBack)" />
-                <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
-                <Control Id="Description" Type="Text" X="135" Y="80" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="!(loc.WelcomeDlgDescription)" />
-                <Control Id="SeparationLine" Type="Line" X="135" Y="140" Width="220" Height="0" />
-                <Control Id="Copyright" Type="Text" X="135" Y="150" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="Portions Copyrighted (c) 2011-2015 ForgeRock AS." />
-                <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="!(loc.WelcomeDlgTitle)" />
-            </Dialog>
-            <InstallUISequence>
-                <Show Dialog="MyWelcomeDlg" Before="ProgressDlg">NOT Installed</Show>
-            </InstallUISequence>
-		</UI>
-	</Product>
+                            <ServiceInstall Id="ConnectorServerServiceInstall" Name="ConnectorServerService"
+                                            DisplayName="OpenICF Connector Server" Type="ownProcess" Start="auto"
+                                            ErrorControl="normal" Description="OpenICF Connector Server"
+                                            Account="[SERVICEACCOUNT]"
+                                            Password="[SERVICEPASSWORD]" Arguments="/service" Vital="yes">
+                            </ServiceInstall>
+                            <ServiceControl Id="StartConnectorServerService" Name="ConnectorServerService"
+                                            Start="install" Wait="no"/>
+                            <ServiceControl Id="StopConnectorServerService" Name="ConnectorServerService" Stop="both"
+                                            Wait="yes" Remove="uninstall"/>
+                        </Component>
+
+
+                        <Component Id="ShellScriptExecutorFactoryComponent" Guid="8B1F7E82-46D7-4F88-A1FA-44FCBF7E683F"
+                                   DiskId="1">
+                            <File Source="$(var.ShellScriptExecutorFactory.TargetPath)"
+                                  Name="$(var.ShellScriptExecutorFactory.TargetFileName)" Checksum="yes" KeyPath="yes"/>
+                            <File Source="$(var.ShellScriptExecutorFactory.TargetDir)Shell.ScriptExecutorFactory.pdb"
+                                  Name="Shell.ScriptExecutorFactory.pdb"/>
+                        </Component>
+
+                        <Component Id="PowerShellScriptExecutorFactoryComponent"
+                                   Guid="8B1F7E82-46D7-4F88-A1FA-44FCBF7E682F" DiskId="1">
+                            <File Source="$(var.PowerShellScriptExecutorFactory.TargetPath)"
+                                  Name="$(var.PowerShellScriptExecutorFactory.TargetFileName)" Checksum="yes"
+                                  KeyPath="yes"/>
+                            <File Source="$(var.PowerShellScriptExecutorFactory.TargetDir)PowerShell.ScriptExecutorFactory.pdb"
+                                  Name="PowerShell.ScriptExecutorFactory.pdb"/>
+                        </Component>
+
+                    </Directory>
+                </Directory>
+            </Directory>
+        </Directory>
+
+
+        <Property Id="INSTALLLEVEL" Value="3"/>
+
+        <Feature Id="Complete"
+                 Title="OpenICF Framework"
+                 Description="OpenICF Connector Server Components"
+                 AllowAdvertise="no"
+                 Display='expand'
+                 Level="1"
+                 ConfigurableDirectory="INSTALLDIR">
+
+
+            <Feature Id="ConnectorFrameworkLibrariesFeature"
+                     Title="Connector Framework"
+                     Description="Connector Framework Core Libraries"
+                     Level="1"
+                     AllowAdvertise="no"
+                     Absent="disallow">
+                <ComponentRef Id="ConnectorFrameworkLibrariesComponent"/>
+                <ComponentRef Id="LegalNotices"/>
+                <ComponentRef Id="LogFolderComponent"/>
+            </Feature>
+
+
+            <Feature Id="ConnectorServiceFeature"
+                     Title="Connector Service"
+                     Description="Legacy Connector Server Service"
+                     Level="3"
+                     AllowAdvertise="yes">
+                <ComponentRef Id="ConnectorServerServiceComponent"/>
+            </Feature>
+
+            <Feature Id="LegacyConnectorServiceFeature"
+                     Title="Legacy Connector Service"
+                     Description="Legacy Connector Server Service"
+                     Level="10"
+                     AllowAdvertise="yes">
+                <ComponentRef Id="LegacyConnectorServerServiceComponent"/>
+            </Feature>
+
+            <Feature Id="ShellScriptExecutorFactoryFeature"
+                     Title="Shell ScriptExecutor Support"
+                     Description="PowerShell ScriptExecutor Support"
+                     Level="3"
+                     AllowAdvertise="yes">
+                <ComponentRef Id="ShellScriptExecutorFactoryComponent"/>
+            </Feature>
+
+            <Feature Id="PowerShellScriptExecutorFactoryFeature"
+                     Title="PowerShell ScriptExecutor Support"
+                     Description="PowerShell ScriptExecutor Support"
+                     Level="3"
+                     AllowAdvertise="yes">
+                <ComponentRef Id="PowerShellScriptExecutorFactoryComponent"/>
+            </Feature>
+
+        </Feature>
+
+        <Icon Id="_FileID_Icon.ico" SourceFile="Resources\FR_ICF_sq_med.ico"/>
+
+
+        <!-- UI information-->
+        <Property Id="ARPPRODUCTICON" Value="_FileID_Icon.ico"/>
+        <Property Id='ARPCOMMENTS'>OpenICF Remote Connector Server</Property>
+        <Property Id='ARPCONTACT'>Visit us at https://www.forgerock.com/contact/</Property>
+        <Property Id='ARPHELPLINK'>https://www.forgerock.com/services/support-services/</Property>
+        <Property Id='ARPHELPTELEPHONE'>+44-1935-804797</Property>
+        <Property Id='ARPURLINFOABOUT'>https://forgerock.org/openicf/</Property>
+        <Property Id='ARPURLUPDATEINFO'>https://forgerock.org/openicf/</Property>
+        <!--Property Id='ARPREADME'>[INSTALLDIR]README</Property-->
+
+        <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER"/>
+        <Property Id="WIXUI_ARPNOMODIFY" Value="yes" Secure="yes"/>
+
+
+        <!-- WixUILicenseRtf: License file. -->
+        <WixVariable Id="WixUILicenseRtf" Value="Resources\product_License.rtf"/>
+        <!-- WixUIBannerBmp: 493 by 58 pixels, this bitmap will appear at the top of all but the first page of the installer. -->
+        <WixVariable Id="WixUIBannerBmp" Value="Resources\setupBanner.bmp"/>
+        <!-- WixUIDialogBmp: 493 by 312 pixels, this bitmap will appear on the first page of the installer. -->
+        <WixVariable Id="WixUIDialogBmp" Value="Resources\setupDialog.bmp"/>
+
+
+        <PropertyRef Id="NETFRAMEWORK45"/>
+        <Condition Message="This setup requires the .NET Framework 4.5 to be installed.">
+            <![CDATA[NETFRAMEWORK45]]>
+        </Condition>
+
+        <Property Id="SERVER_PORT">8759</Property>
+        <Property Id="LEGACY_SERVER_PORT">8760</Property>
+        <Property Id="SHAREDKEY" Hidden='yes'/>
+
+
+        <UI Id="ICFWixUI_Mondo">
+            <UIRef Id="WixUI_Mondo"/>
+        </UI>
+        <UIRef Id="WixUI_ErrorProgressText"/>
+    </Product>
 </Wix>

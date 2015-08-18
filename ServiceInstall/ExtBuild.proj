@@ -26,20 +26,13 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <ForgeRockLegal>false</ForgeRockLegal>
   </PropertyGroup>
-  <Target Name="BeforeBuild">
-    <!-- write out the top of the file.. -->
-    <ReadLinesFromFile File="File.top" >
-      <Output TaskParameter="Lines" ItemName="FileTopLines"/>
-    </ReadLinesFromFile>
-    <WriteLinesToFile File="Files.wxs" Lines="@(FileTopLines)" Overwrite="true" />
-
+  
+  <Target Name="AfterBuild">
     <ItemGroup>
-      <AllFiles Include="..\Service\bin\$(Configuration)\*.config" KeepDuplicates="false"/> 
-      <AllFiles Include="..\Service\bin\$(Configuration)\ConnectorServer.pdb" KeepDuplicates="false"/> 
-      <AllFiles Include="..\ConnectorServerService\bin\$(Configuration)\*.*"
-		            Exclude="..\ConnectorServerService\bin\$(Configuration)\*.exe" KeepDuplicates="false"/>   
-      <LegacyEXEFiles Include="..\Service\bin\$(Configuration)\ConnectorServer.exe"/>
-      <EXEFiles Include="..\ConnectorServerService\bin\$(Configuration)\ConnectorServerService.exe"/>
+      <AllFiles Include="..\Service\bin\$(Configuration)\*.config" KeepDuplicates="false"/>
+      <AllFiles Include="..\Service\bin\$(Configuration)\ConnectorServer.pdb" KeepDuplicates="false"/>
+      <AllFiles Include="..\ConnectorServerService\bin\$(Configuration)\*.*" KeepDuplicates="false"/>
+
       <PowerShellScriptExecutorFactoryFiles  Include="..\PowerShellScriptExecutorFactory\bin\$(Configuration)\*.ScriptExecutorFactory.*"/>
       <ShellScriptExecutorFactoryFiles Include="..\ShellScriptExecutorFactory\bin\$(Configuration)\*.ScriptExecutorFactory.*"/>
       <LegalFiles Include="..\legal\*.txt"
@@ -47,37 +40,6 @@
       <ForgeRockLegalFiles Include="..\legal\ForgeRock*.txt"/>
       <LegalFiles Include="@(ForgeRockLegalFiles)" Condition=" '$(ForgeRockLegal)' == 'true' "/>
     </ItemGroup>
-        
-    <!-- Write out the majority of base files -->
-    <WriteLinesToFile File="Files.wxs"
-  			Lines="@(AllFiles->'&lt;File Source=&quot;%(Fullpath)&quot; Name=&quot;%(Filename)%(Extension)&quot; /&gt;')"/>
-
-    <!-- Write out the Shell and the PowerShell files -->
-    <WriteLinesToFile File="Files.wxs"
-  			Lines="@(PowerShellScriptExecutorFactoryFiles->'&lt;File Source=&quot;%(Fullpath)&quot; Name=&quot;%(Filename)%(Extension)&quot; /&gt;')"/>
-    <WriteLinesToFile File="Files.wxs"
-  			Lines="@(ShellScriptExecutorFactoryFiles->'&lt;File Source=&quot;%(Fullpath)&quot; Name=&quot;%(Filename)%(Extension)&quot; /&gt;')"/>              
-
-    <!-- Write out the Service Executable (should only be one) -->
-    <WriteLinesToFile File="Files.wxs"
-  			Lines="@(EXEFiles->'&lt;File Source=&quot;%(Fullpath)&quot; Name=&quot;%(Filename)%(Extension)&quot; Checksum=&quot;yes&quot; KeyPath=&quot;yes&quot; /&gt;')"/>  
-
-    <WriteLinesToFile File="Files.wxs" Lines="&lt;/Component&gt;"/>
-    <WriteLinesToFile File="Files.wxs" Lines="&lt;/ComponentGroup&gt;"/>          
-    <WriteLinesToFile File="Files.wxs" Lines="&lt;ComponentGroup Id=&quot;LegalFilesComponents&quot; Directory=&quot;LEGALDIR&quot;&gt;"/>
-    <WriteLinesToFile File="Files.wxs" Lines="&lt;Component Id=&quot;LegalNotices&quot; Guid=&quot;84d57160-13d5-11e4-9191-0800200c9a66&quot; DiskId=&quot;1&quot;&gt;"/>   
-    <!-- Write out the Legal files -->
-    <WriteLinesToFile File="Files.wxs"
-  			Lines="@(LegalFiles->'&lt;File Source=&quot;%(Fullpath)&quot; Name=&quot;%(Filename)%(Extension)&quot; /&gt;')"/>
-
-    <!-- Write out the bottom of the file -->
-    <ReadLinesFromFile File="File.bottom" >
-      <Output TaskParameter="Lines" ItemName="FileBottomLines"/>
-    </ReadLinesFromFile>
-    <WriteLinesToFile File="Files.wxs" Lines="@(FileBottomLines)" />
-  </Target>
-
-  <Target Name="AfterBuild">
     <GetAssemblyIdentity AssemblyFiles="..\Service\bin\$(Configuration)\Framework.dll">
       <Output TaskParameter="Assemblies" ItemName="FrameworkAssembly"/>
     </GetAssemblyIdentity>

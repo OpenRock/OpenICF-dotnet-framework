@@ -351,19 +351,21 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
 
                 ConnectorFacade facade = ConnectorFramework.NewInstance(api);
 
-                ScriptContextBuilder builder = new ScriptContextBuilder();
-                builder.ScriptLanguage = "Boo";
+                ScriptContextBuilder builder = new ScriptContextBuilder
+                {
+                    ScriptLanguage = "Boo",
+                    ScriptText = "connector.Update()"
+                };
 
-                builder.ScriptText = "connector.update()";
                 facade.RunScriptOnConnector(builder.Build(), null);
 
-                for (int i = 0; (i < 5 && null == listener.Changes); i++)
+                for (int i = 0; (i < 25 && null == listener.Changes); i++)
                 {
                     Thread.Sleep(1000);
                 }
                 Assert.NotNull(listener.Changes);
                 Assert.AreEqual(listener.Changes.Count, 1);
-                Assert.AreEqual(listener.Changes.First(), "change");
+                Assert.AreEqual(listener.Changes.First().Value, "change");
             }
         }
 

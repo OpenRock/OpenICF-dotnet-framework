@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ====================
+  DO NOT REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+
+  Copyright (c) 2015 ForgeRock AS. All rights reserved.
+
+  The contents of this file are subject to the terms of the Common Development 
+  and Distribution License("CDDL") (the "License").  You may not use this file 
+  except in compliance with the License.
+  
+  You can obtain a copy of the License at 
+  http://opensource.org/licenses/CDDL-1.0
+  See the License for the specific language governing permissions and limitations 
+  under the License. 
+  
+  When distributing the Covered Code, include this CDDL Header Notice in each file
+  and include the License file at legal/CDDLv1.txt.
+  If applicable, add the following below this CDDL Header, with the fields 
+  enclosed by brackets [] replaced by your own identifying information: 
+  "Portions Copyrighted [year] [name of copyright owner]"
+  ====================
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Fragment>
+        <UI>
+            <Dialog Id="ServiceConfigurationDlg" Width="370" Height="270" Title="[ProductName] Setup" NoMinimize="yes">
+                <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes"
+                         NoPrefix="yes">
+                    <Text>Please enter your service configuration</Text>
+                </Control>
+                <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
+                    <Text>{\WixUI_Font_Title}!(loc.SettingsDlg_Title)</Text>
+                </Control>
+                <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no"
+                         Text="WixUI_Bmp_Banner"/>
+                <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0"/>
+
+
+                <Control Id="SharedKeyLabel" Type="Text" X="45" Y="73" Width="100" Height="15" TabSkip="no"
+                         Text="!(loc.SettingsDlg_SharedKeyLabel)"/>
+                <Control Id="SharedKeyEdit" Type="Edit" X="45" Y="85" Width="220" Height="18" Property="SHAREDKEY"
+                         Password="yes" Text="{80}"/>
+
+                <Control Id="LegacyPortLabel" Type="Text" X="45" Y="110" Width="100" Height="15" TabSkip="no"
+                         Text="Legacy Service Port:"/>
+                <Control Id="LegacyPortEdit" Type="Edit" X="45" Y="122" Width="220" Height="18"
+                         Property="LEGACY_SERVER_PORT" Text="{5}"/>
+
+                <Control Id="PortLabel" Type="Text" X="45" Y="147" Width="50" Height="10" TabSkip="no">
+                    <Text>Service Port:</Text>
+                </Control>
+                <Control Id="PortEdit" Type="MaskedEdit" X="45" Y="159" Width="250" Height="16" Property="SERVER_PORT"
+                         Text="^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"/>
+
+
+                <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0"/>
+                <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes"
+                         Text="!(loc.WixUINext)"/>
+                <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)"/>
+                <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes"
+                         Text="!(loc.WixUICancel)">
+                    <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+                </Control>
+
+
+                <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&Back">
+                    <Publish Event="NewDialog" Value="LicenseAgreementDlg">1</Publish>
+                </Control>
+                <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&Next">
+                    <Publish Event="ValidateProductID" Value="0">1</Publish>
+                    <Publish Event="SpawnWaitDialog" Value="WaitForCostingDlg">CostingComplete = 1</Publish>
+                    <Publish Event="NewDialog" Value="VerifyReadyDlg">ProductID</Publish>
+                </Control>
+                <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes"
+                         Text="Cancel">
+                    <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+                </Control>
+            </Dialog>
+
+
+            <!--InstallUISequence>
+                <Show Dialog="MyWelcomeDlg" Before="ProgressDlg">NOT Installed</Show>
+            </InstallUISequence-->
+        </UI>
+        <!--UIRef Id="WixUI_InstallDir"/-->
+
+        <Property Id='CSS'>[SourceDir]ConnectorServerService.exe</Property>
+        <CustomAction Id='LaunchFile' Property='CSS' ExeCommand='/setKey [SHAREDKEY]' Return='asyncNoWait'/>
+
+        <InstallExecuteSequence>
+            <Custom Action='LaunchFile' After='InstallFinalize'>NOT Installed</Custom>
+        </InstallExecuteSequence>
+    </Fragment>
+</Wix>

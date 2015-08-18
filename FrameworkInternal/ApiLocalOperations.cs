@@ -1043,7 +1043,7 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local.Operations
     /// OperationalContext - base class for operations that do not require a
     /// connector instance.
     /// </summary>
-    public class OperationalContext
+    public class OperationalContext : AbstractConfiguration.IConfigurationChangeCallback
     {
 
         /// <summary>
@@ -1085,8 +1085,15 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local.Operations
                 {
                     if (null == configuration)
                     {
-                        this.configuration = CSharpClassProperties.CreateBean((ConfigurationPropertiesImpl)this.apiConfiguration.ConfigurationProperties,
-                connectorInfo.ConnectorConfigurationClass);
+                        configuration =
+                            CSharpClassProperties.CreateBean(
+                                (ConfigurationPropertiesImpl) apiConfiguration.ConfigurationProperties,
+                                connectorInfo.ConnectorConfigurationClass);
+                        if (null != apiConfiguration.ChangeListener
+                            && configuration is AbstractConfiguration)
+                        {
+                            ((AbstractConfiguration) configuration).AddChangeCallback(this);
+                        }
                     }
                 }
             }
@@ -1124,6 +1131,27 @@ namespace Org.IdentityConnectors.Framework.Impl.Api.Local.Operations
                     // log this though
                     Trace.TraceWarning(e.Message);
                 }
+            }
+        }
+
+        public void NotifyUpdate()
+        {
+            try
+            {
+                IConfigurationPropertyChangeListener listener = apiConfiguration.ChangeListener;
+                if (null != listener)
+                {
+                    IList<ConfigurationProperty> diff =
+                        CSharpClassProperties.CalculateDiff(apiConfiguration.ConfigurationProperties, configuration);
+                    if (diff.Count > 0)
+                    {
+                        listener.ConfigurationPropertyChange(diff);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                TraceUtil.TraceException("Configuration change notification is failed for" + configuration.GetType(), e);
             }
         }
     }

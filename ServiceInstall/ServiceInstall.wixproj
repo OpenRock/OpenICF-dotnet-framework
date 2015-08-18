@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
   ====================
   DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
@@ -31,6 +31,7 @@
     <OutputName>ServiceInstall</OutputName>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND '$(MSBuildExtensionsPath32)' != '' ">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' ">$(MSBuildExtensionsPath)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
+    <Cultures>en-US</Cultures>
     <SupressIces>ICE45</SupressIces>
     <OpenICFVersion>1.5.0.0-SNAPSHOT</OpenICFVersion>
   </PropertyGroup>
@@ -60,14 +61,10 @@
   <Import Project="$(WixTargetsPath)" />
   <Import Project="$(MSBuildExtensionsPath)\MSBuildCommunityTasks\MSBuild.Community.Tasks.Targets" />
   <ItemGroup>
-    <!--WixExtension Include="WixUIExtension">
-      <HintPath>WixUIExtension</HintPath>
-      <Name>WixUIExtension</Name>
-    </WixExtension>
     <WixExtension Include="WixUtilExtension">
       <HintPath>$(WixExtDir)\WixUtilExtension.dll</HintPath>
       <Name>WixUtilExtension</Name>
-    </WixExtension-->
+    </WixExtension>
     <WixExtension Include="WixUIExtension">
       <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
       <Name>WixUIExtension</Name>
@@ -76,17 +73,22 @@
       <HintPath>$(WixExtDir)\WixNetFxExtension.dll</HintPath>
       <Name>WixNetFxExtension</Name>
     </WixExtension>
-    <Compile Include="Files.wxs" />
+    <!--Compile Include="SettingsDlg.wxs" /-->
     <Compile Include="Setup.wxs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Resources" />
+    <Folder Include="Localize" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Resources\FR_ICF_sq_med.ico" />
     <Content Include="Resources\setupBanner.bmp" />
     <Content Include="Resources\setupDialog.bmp" />
-    <!--Content Include="Resources\openicf_License.rtf" /-->
+    <Content Include="Resources\product_License.rtf" />
+  </ItemGroup>
+  <ItemGroup>
+    <LocalizationFile Include="Localize\UILoc_en-us.wxl" />
+    <!--EmbeddedResource Include="Localize\UILoc_en-us.wxl" /-->
   </ItemGroup>
   <Import Project="ExtBuild.proj" />
   <ItemGroup>
