@@ -124,7 +124,7 @@
     &lt;!-- Access these values via the property:
             System.Configuration.ConfigurationManager.AppSettings[key]
      --&gt;
-    &lt;add key="connectorserver.certificatestorename" value="ConnectorServerSSLCertificate" /&gt;
+    &lt;add key="connectorserver.certificateThumbprint" value="Use certutil and copy: Cert Hash(sha1) Example:1b0889cdf9e0cee904646bb8a3d0aa4f72035056" /&gt;
     &lt;add key="connectorserver.maxFacadeLifeTime" value="0" /&gt;
     &lt;add key="connectorserver.key" value="lmA6bMfENJGlIDbfrVtklXFK32s=" /&gt;
     &lt;!-- Enable/Disable the logging proxy for all operations. --&gt;
@@ -157,8 +157,8 @@
           &lt;byteStreamMessageEncoding /&gt;
           &lt;httpTransport authenticationScheme="Basic" realm="OpenICF"&gt;
             &lt;webSocketSettings transportUsage="Always" createNotificationOnConnection="true"
-                               subProtocol="v1.openicf.forgerock.org" /&gt;
-          &lt;/httpTransport&gt;
+                               subProtocol="v1.openicf.forgerock.org" /&gt;            
+          &lt;/httpTransport&gt;          
         &lt;/binding&gt;
       &lt;/customBinding&gt;
     &lt;/bindings&gt;

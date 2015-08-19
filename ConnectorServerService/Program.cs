@@ -4,6 +4,7 @@ using System.Configuration.Install;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.ServiceProcess;
 using Org.ForgeRock.OpenICF.Framework.ConnectorServerService.Properties;
 using Org.IdentityConnectors.Common.Security;
@@ -21,6 +22,7 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
             Console.WriteLine("       /uninstall [/serviceName <serviceName>] - Uninstalls the service.");
             Console.WriteLine("       /run - Runs the service from the console.");
             Console.WriteLine("       /setKey [<key>] - Sets the connector server key.");
+            Console.WriteLine("       /setCertificate - Sets secure server certificate thumbprint");
             Console.WriteLine("       /setDefaults - Sets default app.config");
         }
 
@@ -44,6 +46,16 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
                         return;
                     }
                     DoSetKey(args.Length > 1 ? args[1] : null);
+                    return;
+                }
+                if (cmd.Equals("/setCertificate", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    if (args.Length > 1)
+                    {
+                        Usage();
+                        return;
+                    }
+                    DoSetCertificate();
                     return;
                 }
                 if (cmd.Equals("/setDefaults", StringComparison.InvariantCultureIgnoreCase))
@@ -162,6 +174,68 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
                     Console.Write("*");
                     rv.AppendChar(info.KeyChar);
                 }
+            }
+        }
+
+        private static void DoSetCertificate()
+        {
+            X509Store store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
+            try
+            {
+                store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
+                X509Certificate2Collection certificates = store.Certificates;
+                int i = 0;
+                if (certificates.Count > 0)
+                {
+                    Console.WriteLine(@"Select certificate you want to use:");
+                    Console.WriteLine(@"Index  Issued To                Thumbprint");
+                    Console.WriteLine(@"-----  ---------                -------------------------");
+                    Console.WriteLine();
+                    foreach (var cerItem in certificates)
+                    {
+                        Console.WriteLine(@"{0,4})  {1,-25} {2}", i++,
+                            cerItem.GetNameInfo(X509NameType.SimpleName, false),
+                            cerItem.Thumbprint);
+                    }
+                    string line;
+                    Console.WriteLine();
+                    do
+                    {
+                        line = Console.ReadLine();
+                        if (!String.IsNullOrWhiteSpace(line))
+                        {
+                            try
+                            {
+                                int inputIndex = Convert.ToInt32(line);
+                                if (inputIndex >= 0 && inputIndex < certificates.Count)
+                                {
+                                    X509Certificate2 certificate = store.Certificates[inputIndex];
+                                    Configuration config =
+                                        ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+                                    config.AppSettings.Settings.Remove(ConnectorServerService.PropCertificateThumbprint);
+                                    config.AppSettings.Settings.Add(ConnectorServerService.PropCertificateThumbprint,
+                                        certificate.Thumbprint);
+                                    config.Save(ConfigurationSaveMode.Modified);
+                                    Console.WriteLine(@"Certificate Thumbprint has been successfully updated to {0}.",
+                                        certificate.Thumbprint);
+                                    break;
+                                }
+                            }
+                            catch (FormatException)
+                            {
+                            }
+                            Console.WriteLine(@"Invalid input: {0}", line);
+                        }
+                    } while (!String.IsNullOrWhiteSpace(line));
+                }
+                else
+                {
+                    Console.WriteLine(@"No certificate was found in 'LocalMachine:My' store");
+                }
+            }
+            finally
+            {
+                store.Close();
             }
         }
 

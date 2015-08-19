@@ -53,6 +53,7 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
     public partial class ConnectorServerService : ServiceBase
     {
         public const string PropKey = "connectorserver.key";
+        public const string PropCertificateThumbprint = "connectorserver.certificateThumbprint";
         public const string PropFacadeLifetime = "connectorserver.maxFacadeLifeTime";
 
         private Action _closeAction;
@@ -203,7 +204,6 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
 
     public class VtortConnectorServiceHost
     {
-        private const string PropCertstore = "connectorserver.certificatestorename";
         private WebSocketListener _listener;
         private readonly ClientAuthenticationValidator _validator;
         private readonly Uri _endPointUri;
@@ -221,7 +221,7 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
             {
                 ipAddress = IPAddress.Loopback;
             }
-            else if (!"*".Equals(_endPointUri.DnsSafeHost))
+            else if (!"0.0.0.0".Equals(_endPointUri.DnsSafeHost))
             {
                 ipAddress = IOUtil.GetIPAddress(_endPointUri.DnsSafeHost);
             }
@@ -320,26 +320,35 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
         protected X509Certificate2 GetCertificate()
         {
             NameValueCollection settings = ConfigurationManager.AppSettings;
-            String storeName = settings.Get(PropCertstore);
-            if (storeName == null)
+            String certificateThumbprint = settings.Get(ConnectorServerService.PropCertificateThumbprint);
+            if (String.IsNullOrWhiteSpace(certificateThumbprint))
             {
                 throw new Org.IdentityConnectors.Framework.Common.Exceptions.ConfigurationException(
-                    "Missing required configuration setting: " + PropCertstore);
+                    "Missing required configuration setting: " + ConnectorServerService.PropCertificateThumbprint);
             }
 
-            X509Store store = new X509Store(storeName,
-                StoreLocation.LocalMachine);
-
-            store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
-            X509Certificate2Collection certificates = store.Certificates;
-            if (certificates.Count != 1)
+            X509Store store = new X509Store(StoreName.My, StoreLocation.LocalMachine);
+            try
             {
-                throw new Org.IdentityConnectors.Framework.Common.Exceptions.ConfigurationException(
-                    "There is supported to be exactly one certificate in the store: " + storeName);
+                store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
+
+                X509Certificate2 certificate =
+                    store.Certificates.Cast<X509Certificate2>()
+                        .FirstOrDefault(
+                            certificate1 =>
+                                String.Equals(certificate1.Thumbprint, certificateThumbprint,
+                                    StringComparison.CurrentCultureIgnoreCase));
+                if (certificate == null)
+                {
+                    throw new Org.IdentityConnectors.Framework.Common.Exceptions.ConfigurationException(
+                        "The Certificate can not be found with thumbprint: " + certificateThumbprint);
+                }
+                return certificate;
             }
-            X509Certificate2 certificate = store.Certificates[0];
-            store.Close();
-            return certificate;
+            finally
+            {
+                store.Close();
+            }
         }
 
         private async Task ListenAsync()

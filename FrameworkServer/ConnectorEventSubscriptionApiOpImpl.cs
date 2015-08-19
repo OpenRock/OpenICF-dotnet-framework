@@ -301,11 +301,14 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             {
                 if (null != value)
                 {
-                    TryHandleResult(new
+                    if (!TryHandleResult(new
                         ConnectorEventSubscriptionOpResponse
                     {
                         ConnectorObject = MessagesUtil.SerializeMessage<Common.ProtoBuf.ConnectorObject>(value)
-                    });
+                    }))
+                    {
+                        OnError(new Exception("Failed to Handle OnNext event."));
+                    }
                 }
             }
 
@@ -586,11 +589,14 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             {
                 if (null != value)
                 {
-                    TryHandleResult(new
+                    if (!TryHandleResult(new
                         SyncEventSubscriptionOpResponse
                     {
                         SyncDelta = MessagesUtil.SerializeMessage<Common.ProtoBuf.SyncDelta>(value)
-                    });
+                    }))
+                    {
+                        OnError(new Exception("Failed to Handle OnNext event."));
+                    }
                 }
             }
 

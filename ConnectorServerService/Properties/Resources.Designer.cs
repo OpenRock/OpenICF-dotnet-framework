@@ -67,11 +67,10 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService.Properties {
         ///    &lt;!-- Access these values via the property:
         ///            System.Configuration.ConfigurationManager.AppSettings[key]
         ///     --&gt;
-        ///    &lt;add key=&quot;connectorserver.certificatestorename&quot; value=&quot;ConnectorServerSSLCertificate&quot; /&gt;
+        ///    &lt;add key=&quot;connectorserver.certificateThumbprint&quot; value=&quot;Use certutil and copy: Cert Hash(sha1) Example:1b0889cdf9e0cee904646bb8a3d0aa4f72035056&quot; /&gt;
         ///    &lt;add key=&quot;connectorserver.maxFacadeLifeTime&quot; value=&quot;0&quot; /&gt;
         ///    &lt;add key=&quot;connectorserver.key&quot; value=&quot;lmA6bMfENJGlIDbfrVtklXFK32s=&quot; /&gt;
-        ///    &lt;!-- Enable/Disable the logging proxy for all operations. --&gt;
-        ///    &lt;add [rest of string was truncated]&quot;;.
+        ///    &lt;!-- Enable/ [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string DefaultConfig {
             get {
