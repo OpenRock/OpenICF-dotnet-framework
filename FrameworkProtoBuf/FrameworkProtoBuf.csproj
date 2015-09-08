@@ -71,8 +71,12 @@
     <None Include="protobuf\RPCMessages.proto" />
   </ItemGroup>
   <ItemGroup />
+  <Target Name="FrameworkBeforeBuild">
+      <CallTarget Targets="GenerateAssemblyInfo" />
+      <Exec Command="..\packages\Google.ProtocolBuffers.3\tools\protoc.exe -I=.\protobuf --csharp_out=. .\protobuf\CommonObjectMessages.proto .\protobuf\OperationMessages.proto .\protobuf\RPCMessages.proto" WorkingDirectory="$(MSBuildProjectDirectory)" ContinueOnError="false" />
+  </Target>
   <Target Name="Clean">
-    <Delete Files="AssemblyInfo.cs;version.txt" />
+    <Delete Files="CommonObjectMessages.cs;OperationMessages.cs;AssemblyInfo.cs;RPCMessages.cs;version.txt" />
     <RemoveDir Directories="obj;bin" />
   </Target>
 </Project>
