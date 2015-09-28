@@ -889,7 +889,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 var from = source as Common.ProtoBuf.ConnectorObject;
                 if (null != from)
                 {
-                    ICollection<Object> attsObj = DeserializeLegacy<ICollection<Object>>(from.Attriutes);
+                    ICollection<Object> attsObj = DeserializeLegacy<ICollection<Object>>(from.Attributes);
                     ICollection<OBJ.ConnectorAttribute> atts =
                         CollectionUtil.NewSet<Object, OBJ.ConnectorAttribute>(attsObj);
                     return (T) (object) new OBJ.ConnectorObject(new OBJ.ObjectClass(from.ObjectClass), atts);
@@ -1044,7 +1044,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                     return (T) (object) new Common.ProtoBuf.ConnectorObject
                     {
                         ObjectClass = from.ObjectClass.GetObjectClassValue(),
-                        Attriutes = SerializeLegacy(from.GetAttributes())
+                        Attributes = SerializeLegacy(from.GetAttributes())
                     };
                 }
             }
