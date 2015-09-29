@@ -41,10 +41,10 @@
             <Output TaskParameter="Build" PropertyName="Build" />
             <Output TaskParameter="Revision" PropertyName="Revision" />
         </Version>
-        <CreateProperty Value="$(Revision)"  Condition=" '$(SVN_REVISION)'=='' ">
+        <CreateProperty Value="$(Revision)"  Condition=" '$(GIT_COMMIT)'=='' ">
           <Output TaskParameter="Value" PropertyName="SVNRevision"/>
         </CreateProperty>
-        <CreateProperty Value="$(SVN_REVISION)"  Condition=" '$(SVN_REVISION)'!='' ">
+        <CreateProperty Value="$(GIT_COMMIT)"  Condition=" '$(GIT_COMMIT)'!='' ">
           <Output TaskParameter="Value" PropertyName="SVNRevision"/>
         </CreateProperty>
         <Message Text="$(MSBuildProjectName) Version: $(Major).$(Minor).$(Build).$(Revision) Revision: $(SVNRevision)"/>
