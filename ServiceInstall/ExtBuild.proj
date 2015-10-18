@@ -50,13 +50,16 @@
 
     <Copy SourceFiles="..\legal\CDDLv1.txt" DestinationFolder="bin\$(Configuration)\target\legal-notices" />
     <Copy SourceFiles="..\legal\ForgeRock_License.txt" DestinationFolder="bin\$(Configuration)\target\legal-notices" Condition=" '$(ForgeRockLegal)' == 'true' "/>
+    <MakeDir
+            Directories="bin\$(Configuration)\target\logs"/>
     <ItemGroup>
       <ZipFiles Include="bin\$(Configuration)\target\**\*.dll;
             bin\$(Configuration)\target\**\*.pdb;
             bin\$(Configuration)\target\**\*.exe;
             bin\$(Configuration)\target\**\*.config;
             bin\$(Configuration)\target\**\*.xml;
-            bin\$(Configuration)\target\**\*.txt" Exclude="*.zip" />
+            bin\$(Configuration)\target\**\*.txt;
+            bin\$(Configuration)\target\logs" Exclude="*.zip" />
     </ItemGroup>
     <Zip Files="@(ZipFiles)" WorkingDirectory="bin\$(Configuration)\target" ZipFileName="bin\$(Configuration)\openicf-$(OpenICFVersion)-dotnet.zip" />
   </Target>
