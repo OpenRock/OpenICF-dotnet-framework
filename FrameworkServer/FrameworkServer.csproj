@@ -64,6 +64,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Collections.Concurrent" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Async.cs" />

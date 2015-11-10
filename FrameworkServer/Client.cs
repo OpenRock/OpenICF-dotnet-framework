@@ -75,7 +75,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                             {
                                 if (result.IsCompleted)
                                 {
-                                    connections[(int) o] = result.Result;
+                                    connections[(int)o] = result.Result;
                                 }
                                 else if (result.IsFaulted)
                                 {
@@ -119,7 +119,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         {
             private readonly ClientRemoteConnectorInfoManager _parent;
 
-            public RemoteDelegatingAsyncConnectorInfoManager(ClientRemoteConnectorInfoManager parent) : base(true)
+            public RemoteDelegatingAsyncConnectorInfoManager(ClientRemoteConnectorInfoManager parent)
+                : base(true)
             {
                 _parent = parent;
             }
@@ -169,6 +170,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             registry =
                 new ConcurrentDictionary<RemoteWSFrameworkConnectionInfo, ClientRemoteConnectorInfoManager>();
 
+        private readonly Timer _timer;
+
         internal RemoteConnectionInfoManagerFactory(
             IMessageListener<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 messageListener,
@@ -176,6 +179,20 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         {
             this._messageListener = messageListener;
             this.managerConfig = managerConfig;
+
+
+            _timer = new Timer(state =>
+            {
+                if (Running)
+                {
+                    foreach (var connectionGroup in connectionGroups.Values)
+                    {
+                        Trace.TraceInformation("Check ConnectionGroup:{0} - operational={1}", connectionGroup.RemoteSessionId
+                            , connectionGroup.Operational);
+                        connectionGroup.CheckIsActive();
+                    }
+                }
+            }, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(4));
         }
 
         public IRemoteConnectorInfoManager Connect(RemoteWSFrameworkConnectionInfo info)
@@ -215,6 +232,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
 
         protected internal void doClose()
         {
+            _timer.Dispose();
             foreach (var clientRemoteConnectorInfoManager in registry.Values)
             {
                 clientRemoteConnectorInfoManager.Dispose();
@@ -356,7 +374,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
 
     #endregion
 
-    #region sd
+    #region WebSocketWrapper
 
     public class WebSocketWrapper : WebSocketConnectionHolder
     {
@@ -524,15 +542,15 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         protected override async Task WriteMessageAsync(byte[] entry, WebSocketMessageType messageType)
         {
             var messageBuffer = entry;
-            var messagesCount = (int) Math.Ceiling((double) messageBuffer.Length/SendChunkSize);
+            var messagesCount = (int)Math.Ceiling((double)messageBuffer.Length / SendChunkSize);
 
             for (var i = 0; i < messagesCount; i++)
             {
-                var offset = (SendChunkSize*i);
+                var offset = (SendChunkSize * i);
                 var count = SendChunkSize;
                 var lastMessage = ((i + 1) == messagesCount);
 
-                if ((count*(i + 1)) > messageBuffer.Length)
+                if ((count * (i + 1)) > messageBuffer.Length)
                 {
                     count = messageBuffer.Length - offset;
                 }

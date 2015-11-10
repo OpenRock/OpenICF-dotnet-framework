@@ -50,7 +50,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
     public abstract class LocalOperationProcessor<TV> :
         LocalRequest<TV, Exception, WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
     {
-        protected bool StickToConnection = false;
+        private int _inconsistencyCounter = 0;
 
         protected WebSocketConnectionHolder ReverseConnection;
 
@@ -61,6 +61,24 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
 
         protected abstract RPCResponse CreateOperationResponse(RemoteOperationContext remoteContext,
             TV result);
+
+        public override Boolean Check()
+        {
+            Boolean valid = _inconsistencyCounter < 3;
+            if (!valid)
+            {
+                Trace.TraceInformation(
+                        "LocalRequest:{0} -> inconsistent with remote server, trying to cancel local process.",
+                        RequestId);
+                Dispose();
+            }
+            return valid;
+        }
+
+        public override void Inconsistent()
+        {
+            _inconsistencyCounter++;
+        }
 
         protected override bool TryHandleResult(TV result)
         {
@@ -92,7 +110,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             byte[] responseMessage = MessagesUtil.CreateErrorResponse(RequestId, error).ToByteArray();
             try
             {
-                return null != TrySendBytes(responseMessage, true).Result;
+                return null != TrySendBytes(responseMessage, true);
             }
             catch (ConnectorIOException e)
             {
@@ -107,48 +125,12 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
 
         protected WebSocketConnectionHolder TrySendBytes(byte[] responseMessage)
         {
-            return TrySendBytes(responseMessage, false).Result;
+            return TrySendBytes(responseMessage, false);
         }
 
-        protected async Task<WebSocketConnectionHolder> TrySendBytes(byte[] responseMessage, bool useAnyConnection)
+        protected WebSocketConnectionHolder TrySendBytes(byte[] responseMessage, bool useAnyConnection)
         {
-            if (StickToConnection && !useAnyConnection)
-            {
-                if (null != ReverseConnection)
-                {
-                    try
-                    {
-                        await ReverseConnection.SendBytesAsync(responseMessage, CancellationToken.None);
-                    }
-                    catch (AggregateException e)
-                    {
-                        throw new ConnectorIOException(e.Message, e.InnerException);
-                    }
-                }
-                else
-                {
-                    lock (this)
-                    {
-                        if (null == ReverseConnection)
-                        {
-                            ReverseConnection = TrySendMessageNow(responseMessage);
-                            if (null == ReverseConnection)
-                            {
-                                throw new ConnectorIOException("Transport layer is not operational");
-                            }
-                        }
-                        else
-                        {
-                            TrySendBytes(responseMessage);
-                        }
-                    }
-                }
-            }
-            else
-            {
-                return TrySendMessageNow(responseMessage);
-            }
-            return ReverseConnection;
+            return TrySendMessageNow(responseMessage);
         }
 
         private WebSocketConnectionHolder TrySendMessageNow(byte[] responseMessage)
@@ -202,6 +184,9 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
     public abstract class RemoteOperationRequest<TV> :
         RemoteRequest<TV, Exception, WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
     {
+
+        protected int InconsistencyCounter = 0;
+
         protected RemoteOperationRequest(RemoteOperationContext context, long requestId,
             Action
                 <
@@ -216,6 +201,26 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             Object message);
 
         protected internal abstract RPCRequest CreateOperationRequest(RemoteOperationContext remoteContext);
+
+        public override Boolean Check()
+        {
+            Boolean valid = InconsistencyCounter < 3;
+            if (!valid)
+            {
+                Trace.TraceInformation(
+                        "RemoteRequest:{0} -> inconsistent with remote server, set failed local process.",
+                        RequestId);
+                HandleError(
+                        new ConnectorException(
+                                "Operation finished on remote server with unknown result"));
+            }
+            return valid;
+        }
+
+        public override void Inconsistent()
+        {
+            InconsistencyCounter++;
+        }
 
         public override void HandleIncomingMessage(WebSocketConnectionHolder sourceConnection, Object message)
         {
@@ -316,6 +321,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         RemoteConnectionGroup<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>,
         IAsyncConnectorInfoManager
     {
+        private DateTime _lastActivity = DateTime.Now;
+
         private readonly Encryptor _encryptor = null;
 
         private RemoteOperationContext _operationContext;
@@ -387,27 +394,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             string name = connectionPrincipal.Identity.Name;
             if (_principals.Remove(name))
             {
-                if (!_principals.Any())
-                {
-                    // Gracefully close all request and shut down this group.
-                    foreach (
-                        var local in
-                            LocalRequests.Select(entry => entry.Value)
-                                .OfType
-                                <IDisposable>())
-                    {
-                        local.Dispose();
-                    }
-                    foreach (
-                        var remote in
-                            RemoteRequests.Select(entry => entry.Value)
-                                .OfType
-                                <IDisposable>())
-                    {
-                        remote.Dispose();
-                    }
-                    _delegate.Dispose();
-                }
+                Shutdown();
                 foreach (var entry in WebSockets)
                 {
                     if (name.Equals(entry.Value, StringComparison.CurrentCultureIgnoreCase))
@@ -416,6 +403,31 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                         WebSockets.TryRemove(entry.Key, out ignore);
                     }
                 }
+            }
+        }
+
+        protected void Shutdown()
+        {
+            if (!_principals.Any())
+            {
+                // Gracefully close all request and shut down this group.
+                foreach (
+                    var local in
+                        LocalRequests.Select(entry => entry.Value)
+                            .OfType
+                            <IDisposable>())
+                {
+                    local.Dispose();
+                }
+                foreach (
+                    var remote in
+                        RemoteRequests.Select(entry => entry.Value)
+                            .OfType
+                            <IDisposable>())
+                {
+                    remote.Dispose();
+                }
+                _delegate.Dispose();
             }
         }
 
@@ -509,6 +521,64 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             }
         }
 
+        public virtual bool CheckIsActive()
+        {
+            bool operational = Operational;
+
+            if (new TimeSpan(DateTime.Now.Ticks - _lastActivity.Ticks).TotalHours > 0 && !Operational)
+            {
+                // 1 hour inactivity -> Shutdown
+                _principals.Clear();
+                Shutdown();
+                WebSockets.Clear();
+            }
+            else
+            {
+                foreach (var local in LocalRequests.Values)
+                {
+                    local.Check();
+                }
+
+                foreach (var remote in RemoteRequests.Values)
+                {
+                    remote.Check();
+                }
+
+                if (operational)
+                {
+                    ControlMessageRequestFactory requestFactory = new ControlMessageRequestFactory();
+                    TrySubmitRequest(requestFactory);
+                }
+            }
+            return operational || !RemoteRequests.IsEmpty || !LocalRequests.IsEmpty;
+        }
+
+        public void ProcessControlRequest(ControlRequest message)
+        {
+            _lastActivity = DateTime.Now;
+            foreach (var entry in RemoteRequests)
+            {
+                if (!message.LocalRequestId.Contains(entry.Key))
+                {
+                    //Remote request is exists locally but remotely nothing match. 
+                    // 1. ControlRequest was sent before LocalRequest was created so it normal.
+                    // 2. Request on remote side is completed so we must Complete the RemoteRequest(Fail) unless the local request is still processing.
+                    entry.Value.Inconsistent();
+                }
+            }
+
+            foreach (var entry in LocalRequests)
+            {
+                if (!message.RemoteRequestId.Contains(entry.Key))
+                {
+                    //Local request exists locally but remotely nothing match. 
+                    // 1. ControlRequest was sent before RemoteRequest was created so it normal.
+                    // 2. Request on remote side is Cancelled/Terminated so it can safely Cancel here. 
+                    entry.Value.Inconsistent();
+                }
+            }
+        }
+
         // -- Static Classes
 
         private sealed class RemoteConnectorInfoManager :
@@ -580,9 +650,11 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 {
                     builder.InfoLevel.Add(infoLevel);
                 }
+                builder.LocalRequestId.Add(remoteContext.RemoteConnectionGroup.LocalRequests.Keys);
+                builder.RemoteRequestId.Add(remoteContext.RemoteConnectionGroup.RemoteRequests.Keys);
                 return new RPCRequest
                 {
-                    ControlRequest = builder
+                    ControlRequest = builder,
                 };
             }
 

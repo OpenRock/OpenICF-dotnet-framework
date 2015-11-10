@@ -85,7 +85,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Service.WcfServiceLibrary
             }
 
             WebSocketMessageProperty property =
-                (WebSocketMessageProperty) message.Properties[WebSocketMessageProperty.Name];
+                (WebSocketMessageProperty)message.Properties[WebSocketMessageProperty.Name];
 
 
             if (!message.IsEmpty)
@@ -131,7 +131,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Service.WcfServiceLibrary
             Message message = ByteStreamMessage.CreateMessage(
                 new ArraySegment<byte>(entry));
             message.Properties[WebSocketMessageProperty.Name] =
-                new WebSocketMessageProperty {MessageType = messageType};
+                new WebSocketMessageProperty { MessageType = messageType };
             await _callback.OnMessage(message);
         }
 
@@ -192,11 +192,11 @@ namespace Org.ForgeRock.OpenICF.Framework.Service.WcfServiceLibrary
         public ConnectorServiceHostFactory()
         {
             NameValueCollection settings = ConfigurationManager.AppSettings;
-            String authenticatorType = settings.Get(typeof (ClientAuthenticationValidator).FullName);
+            String authenticatorType = settings.Get(typeof(ClientAuthenticationValidator).FullName);
             if (String.IsNullOrEmpty(authenticatorType))
             {
                 throw new Exception("Missing required app configuration: " +
-                                    typeof (ClientAuthenticationValidator).FullName);
+                                    typeof(ClientAuthenticationValidator).FullName);
             }
 
             var type = AppDomain.CurrentDomain.GetAssemblies()
@@ -205,7 +205,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Service.WcfServiceLibrary
                 .FirstOrDefault(t => t.FullName.Equals(authenticatorType));
             if (type != null)
             {
-                _authenticator = (ClientAuthenticationValidator) Activator.CreateInstance(type);
+                _authenticator = (ClientAuthenticationValidator)Activator.CreateInstance(type);
                 //Add Principal and SharedKey
                 String keyHash = settings.Get(PropKey);
                 if (null != keyHash)
@@ -241,7 +241,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Service.WcfServiceLibrary
     public class ConnectorServiceHost : ServiceHost
     {
         public ConnectorServiceHost(ClientAuthenticationValidator validator, params Uri[] baseAddresses)
-            : base(typeof (WcfWebsocket), baseAddresses)
+            : base(typeof(WcfWebsocket), baseAddresses)
         {
             if (validator == null)
             {
@@ -253,7 +253,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Service.WcfServiceLibrary
             Credentials.UserNameAuthentication.CustomUserNamePasswordValidator = validator;
 
             // Add a custom authorization policy
-            var policies = new List<IAuthorizationPolicy> {validator};
+            var policies = new List<IAuthorizationPolicy> { validator };
             Authorization.PrincipalPermissionMode = PrincipalPermissionMode.Custom;
             Authorization.ExternalAuthorizationPolicies = policies.AsReadOnly();
 
@@ -409,11 +409,12 @@ namespace Org.ForgeRock.OpenICF.Framework.Service.WcfServiceLibrary
 
     #endregion
 
-    #region SingleTenant 
+    #region SingleTenant
 
     public class SingleTenantPrincipal : ConnectionPrincipal
     {
         private readonly ConnectorFramework _connectorFramework;
+        private readonly Timer _timer;
 
         public SingleTenantPrincipal(ConnectorFramework connectorFramework)
             : this(new OpenICFServerAdapter(connectorFramework, connectorFramework.LocalManager, false))
@@ -425,10 +426,24 @@ namespace Org.ForgeRock.OpenICF.Framework.Service.WcfServiceLibrary
             IMessageListener<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext> listener)
             : base(listener, new ConcurrentDictionary<string, WebSocketConnectionGroup>())
         {
+            _timer = new Timer(state =>
+            {
+                if (isRunning == 1)
+                {
+                    foreach (var connectionGroup in ConnectionGroups.Values)
+                    {
+                        Trace.TraceInformation("Check ConnectionGroup:{0} - operational={1}", connectionGroup.RemoteSessionId
+                            , connectionGroup.Operational);
+                        connectionGroup.CheckIsActive();
+                    }
+                }
+            }, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(4));
+
         }
 
         protected override void DoClose()
         {
+            _timer.Dispose();
             _connectorFramework.Dispose();
         }
     }

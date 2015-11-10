@@ -177,6 +177,18 @@ namespace Org.ForgeRock.OpenICF.Common.RPC
             _remoteConnectionContext.RemoteConnectionGroup.ReceiveRequest<TV, TE, LocalRequest<TV, TE, TG, TH, TP>>(this);
         }
 
+        /// <summary>
+        /// Check if this object was {@ref Inconsistent}-ed and don't dispose.
+        /// </summary>
+        /// <returns> 'true' when object is still active or 'false' when this can be
+        ///         disposed. </returns>
+        public abstract bool Check();
+
+        /// <summary>
+        /// Signs that the object state is inconsistent.
+        /// </summary>
+        public abstract void Inconsistent();
+
         protected internal abstract bool TryHandleResult(TV result);
 
         protected internal abstract bool TryHandleError(TE error);
@@ -782,6 +794,18 @@ namespace Org.ForgeRock.OpenICF.Common.RPC
             _completionCallback = completionCallback;
             _cancellationToken = cancellationToken;
         }
+
+        /// <summary>
+        /// Check if this object was {@ref Inconsistent}-ed and don't dispose.
+        /// </summary>
+        /// <returns> 'true' when object is still active or 'false' when this can be
+        ///         disposed. </returns>
+        public abstract bool Check();
+
+        /// <summary>
+        /// Signs that the object state is inconsistent.
+        /// </summary>
+        public abstract void Inconsistent();
 
         public abstract void HandleIncomingMessage(TH sourceConnection, Object message);
 
