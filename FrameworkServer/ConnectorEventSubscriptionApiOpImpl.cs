@@ -47,8 +47,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public ConnectorEventSubscriptionApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, Org.IdentityConnectors.Framework.Api.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -240,7 +240,6 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 ConnectorEventSubscriptionOpRequest message)
                 : base(requestId, socket, message)
             {
-                StickToConnection = false;
             }
 
             protected override RPCResponse CreateOperationResponse(RemoteOperationContext remoteContext,
@@ -317,7 +316,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 try
                 {
                     byte[] responseMessage = MessagesUtil.CreateErrorResponse(RequestId, error).ToByteArray();
-                    TrySendBytes(responseMessage, true).ConfigureAwait(false);
+                    TrySendBytes(responseMessage, true);
                 }
                 catch (Exception t)
                 {
@@ -342,8 +341,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public SyncEventSubscriptionApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, Org.IdentityConnectors.Framework.Api.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -528,7 +527,6 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 SyncEventSubscriptionOpRequest message)
                 : base(requestId, socket, message)
             {
-                StickToConnection = false;
             }
 
             protected override RPCResponse CreateOperationResponse(RemoteOperationContext remoteContext,
@@ -605,7 +603,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 try
                 {
                     byte[] responseMessage = MessagesUtil.CreateErrorResponse(RequestId, error).ToByteArray();
-                    TrySendBytes(responseMessage, true).ConfigureAwait(false);
+                    TrySendBytes(responseMessage, true);
                 }
                 catch (Exception t)
                 {

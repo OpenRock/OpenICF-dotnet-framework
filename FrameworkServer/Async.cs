@@ -33,7 +33,6 @@ using Org.IdentityConnectors.Framework.Api.Operations;
 using Org.IdentityConnectors.Framework.Common;
 using Org.IdentityConnectors.Framework.Common.Exceptions;
 using Org.IdentityConnectors.Framework.Common.Objects;
-using Org.IdentityConnectors.Framework.Common.Objects.Filters;
 using Org.IdentityConnectors.Framework.Common.Serializer;
 using Org.IdentityConnectors.Framework.Spi;
 
@@ -48,7 +47,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
     /// <remarks>since 1.5</remarks>
     public interface IAsyncConnectorFacade : ConnectorFacade, IAuthenticationAsyncApiOp, ICreateAsyncApiOp,
         IDeleteAsyncApiOp, IGetAsyncApiOp, IResolveUsernameAsyncApiOp, ISchemaAsyncApiOp, IScriptOnConnectorAsyncApiOp,
-        IScriptOnResourceAsyncApiOp, ISearchAsyncApiOp, ISyncAsyncApiOp, ITestAsyncApiOp, IUpdateAsyncApiOp,
+        IScriptOnResourceAsyncApiOp, ITestAsyncApiOp, IUpdateAsyncApiOp,
         IValidateAsyncApiOp
     {
     }
@@ -442,126 +441,6 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         /// </returns>
         Task<object> RunScriptOnResourceAsync(ScriptContext request, OperationOptions options,
             CancellationToken cancellationToken);
-    }
-
-    #endregion
-
-    #region ISearchAsyncApiOp
-
-    public interface ISearchAsyncApiOp : SearchApiOp
-    {
-        /// <summary>
-        ///     Search the resource for all objects that match the object class and
-        ///     filter.
-        /// </summary>
-        /// <param name="objectClass">
-        ///     reduces the number of entries to only those that match the
-        ///     <seealso cref="ObjectClass" /> provided.
-        /// </param>
-        /// <param name="filter">
-        ///     Reduces the number of entries to only those that match the
-        ///     <seealso cref="Filter" /> provided, if any. May be null.
-        /// </param>
-        /// <param name="handler">
-        ///     class responsible for working with the objects returned from
-        ///     the search.
-        /// </param>
-        /// <param name="options">
-        ///     additional options that impact the way this operation is run.
-        ///     May be null.
-        /// </param>
-        /// <param name="cancellationToken"></param>
-        /// <returns> The query result or {@code null}. </returns>
-        /// <exception cref="Exception">
-        ///     if there is problem during the processing of the results.
-        /// </exception>
-        Task<SearchResult> SearchAsync(ObjectClass objectClass, Filter filter, ResultsHandler handler,
-            OperationOptions options, CancellationToken cancellationToken);
-    }
-
-    #endregion
-
-    #region ISyncAsyncApiOp
-
-    public interface ISyncAsyncApiOp : SyncApiOp
-    {
-        /// <summary>
-        ///     Request synchronization events--i.e., native changes to target objects.
-        ///     <para>
-        ///         This method will call the specified
-        ///         {@link Org.IdentityConnectors.Framework.Common.Objects.SyncResultsHandler#handle
-        ///         handler} once to pass back each matching
-        ///         {@link Org.IdentityConnectors.Framework.Common.Objects.SyncDelta
-        ///         synchronization event}. Once this method returns, this method will no
-        ///         longer invoke the specified handler.
-        ///     </para>
-        ///     <para>
-        ///         Each
-        ///         {@link Org.IdentityConnectors.Framework.Common.Objects.SyncDelta#getToken()
-        ///         synchronization event contains a token} that can be used to resume
-        ///         reading events <i>starting from that point in the event stream</i>. In
-        ///         typical usage, a client will save the token from the final
-        ///         synchronization event that was received from one invocation of this
-        ///         {@code sync()} method and then pass that token into that client's next
-        ///         call to this {@code sync()} method. This allows a client to
-        ///         "pick up where he left off" in receiving synchronization events. However,
-        ///         a client can pass the token from <i>any</i> synchronization event into a
-        ///         subsequent invocation of this {@code sync()} method. This will return
-        ///         synchronization events (that represent native changes that occurred)
-        ///         immediately subsequent to the event from which the client obtained the
-        ///         token.
-        ///     </para>
-        ///     <para>
-        ///         A client that wants to read synchronization events "starting now" can
-        ///         call <seealso cref="GetLatestSyncTokenAsync" /> and then pass that token into this
-        ///         {@code sync()} method.
-        ///     </para>
-        /// </summary>
-        /// <param name="objectClass">
-        ///     The class of object for which to return synchronization
-        ///     events. Must not be null.
-        /// </param>
-        /// <param name="token">
-        ///     The token representing the last token from the previous sync.
-        ///     The {@code SyncResultsHandler} will return any number of
-        ///     <seealso cref="Org.IdentityConnectors.Framework.Common.Objects.SyncDelta" />
-        ///     objects, each of which contains a token. Should be
-        ///     {@code null} if this is the client's first call to the
-        ///     {@code sync()} method for this connector.
-        /// </param>
-        /// <param name="handler">
-        ///     The result handler. Must not be null.
-        /// </param>
-        /// <param name="options">
-        ///     Options that affect the way this operation is run. May be
-        ///     null.
-        /// </param>
-        /// <param name="cancellationToken"></param>
-        /// <returns> The sync token or {@code null}. </returns>
-        /// <exception cref="ArgumentException">
-        ///     if {@code objectClass} or {@code handler} is null or if any
-        ///     argument is invalid.
-        /// </exception>
-        Task<SyncToken> SyncAsync(ObjectClass objectClass, SyncToken token, SyncResultsHandler handler,
-            OperationOptions options, CancellationToken cancellationToken);
-
-        /// <summary>
-        ///     Returns the token corresponding to the most recent synchronization event
-        ///     for any instance of the specified object class.
-        ///     <para>
-        ///         An application that wants to receive synchronization events
-        ///         "starting now" --i.e., wants to receive only native changes that occur
-        ///         after this method is called-- should call this method and then pass the
-        ///         resulting token into <seealso cref="SyncAsync"> the sync() method</seealso>.
-        ///     </para>
-        /// </summary>
-        /// <param name="objectClass">
-        ///     the class of object for which to find the most recent
-        ///     synchronization event (if any).
-        /// </param>
-        /// <param name="cancellationToken"></param>
-        /// <returns> A token if synchronization events exist; otherwise {@code null}. </returns>
-        Task<SyncToken> GetLatestSyncTokenAsync(ObjectClass objectClass, CancellationToken cancellationToken);
     }
 
     #endregion

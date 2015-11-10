@@ -23,14 +23,17 @@
  */
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Google.Protobuf;
 using Org.ForgeRock.OpenICF.Common.RPC;
 using Org.IdentityConnectors.Common;
 using Org.IdentityConnectors.Common.Security;
+using Org.IdentityConnectors.Framework.Api.Operations;
 using Org.IdentityConnectors.Framework.Common.Exceptions;
 using Org.IdentityConnectors.Framework.Common.Objects;
 using Org.IdentityConnectors.Framework.Common.Objects.Filters;
@@ -51,14 +54,17 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         protected AbstractAPIOperation(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, API.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
         {
             RemoteConnection = Assertions.NullChecked(remoteConnection, "remoteConnection");
             ConnectorKey = Assertions.NullChecked(connectorKey, "connectorKey");
             FacadeKeyFunction = Assertions.NullChecked(facadeKeyFunction, "facadeKeyFunction");
+            Timeout = Math.Max(timeout, API.APIConstants.NO_TIMEOUT);
         }
 
         public API.ConnectorKey ConnectorKey { get; internal set; }
+
+        public long Timeout { get; internal set; }
 
         protected internal
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
@@ -79,6 +85,181 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             TaskCompletionSource<TV> result = new TaskCompletionSource<TV>();
             result.SetException(FailedExceptionMessage);
             return result.Task;
+        }
+    }
+
+    internal abstract class ResultBuffer<T, TR>
+    {
+        internal class Pair
+        {
+            public T Item { get; set; }
+            public TR Result { get; set; }
+        }
+
+        private readonly int _timeoutMillis;
+        private volatile Boolean _stopped = false;
+        private readonly BlockingCollection<Pair> _queue = new BlockingCollection<Pair>(new ConcurrentQueue<Pair>());
+
+        private readonly ConcurrentDictionary<long, Pair> _buffer = new ConcurrentDictionary<long, Pair>();
+
+        private Int64 _nextPermit = 1;
+
+        private long _lastSequenceNumber = -1;
+
+        protected ResultBuffer(long timeoutMillis)
+        {
+
+            if (timeoutMillis == API.APIConstants.NO_TIMEOUT)
+            {
+                _timeoutMillis = int.MaxValue;
+            }
+            else if (timeoutMillis == 0)
+            {
+                _timeoutMillis = 60 * 1000;
+            }
+            else
+            {
+                _timeoutMillis = unchecked((int)timeoutMillis);
+            }
+        }
+
+        public virtual bool Stopped
+        {
+            get
+            {
+                return _stopped;
+            }
+        }
+
+        public virtual bool HasLast()
+        {
+            return _lastSequenceNumber > 0;
+        }
+
+        public virtual bool HasAll()
+        {
+            return HasLast() && _nextPermit > _lastSequenceNumber;
+        }
+
+        public virtual int Remaining
+        {
+            get
+            {
+                return _queue.Count;
+            }
+        }
+
+        public virtual void Clear()
+        {
+            _stopped = true;
+            _buffer.Clear();
+            Pair item;
+            while (_queue.TryTake(out item))
+            {
+                // do nothing
+            }
+        }
+
+        public virtual void ReceiveNext(long sequence, T result)
+        {
+            if (null != result)
+            {
+                if (_nextPermit == sequence)
+                {
+                    Enqueue(new Pair { Item = result });
+                }
+                else
+                {
+                    _buffer[sequence] = new Pair { Item = result };
+                }
+            }
+            // Feed the queue
+            Pair o = null;
+            while ((_buffer.TryRemove(_nextPermit, out o)))
+            {
+                Enqueue(o);
+            }
+        }
+
+        public virtual void ReceiveLast(long resultCount, TR result)
+        {
+            if (0 == resultCount && null != result)
+            {
+                // Empty result set
+                Enqueue(new Pair { Result = result });
+                _lastSequenceNumber = 0;
+            }
+            else
+            {
+                long idx = resultCount + 1;
+                _buffer[idx] = new Pair { Result = result };
+                _lastSequenceNumber = idx;
+            }
+
+            if (_lastSequenceNumber == _nextPermit)
+            {
+                // Operation finished
+                Enqueue(new Pair { Result = result });
+            }
+            else
+            {
+                ReceiveNext(_nextPermit, default(T));
+            }
+        }
+
+        protected internal virtual void Enqueue(Pair result)
+        {
+            // Block if queue is full
+            if (_queue.TryAdd(result))
+            {
+                // Let the next go through
+                _nextPermit++;
+            }
+            else
+            {
+                // What to do?
+                Trace.TraceInformation("Failed to Enqueue: ");
+            }
+        }
+
+        protected internal abstract bool Handle(object result);
+
+
+        public void Process()
+        {
+            while (!_stopped)
+            {
+
+                Pair obj;
+
+                if (!_queue.TryTake(out obj, _timeoutMillis))
+                {
+                    // we timed out
+                    ReceiveNext(-1L, default(T));
+                    if (_queue.Any())
+                    {
+                        Clear();
+                        throw new OperationTimeoutException();
+                    }
+                }
+                else
+                {
+                    try
+                    {
+                        Boolean keepGoing = Handle(obj);
+                        if (!keepGoing)
+                        {
+                            // stop and wait
+                            Clear();
+                        }
+                    }
+                    catch (Exception t)
+                    {
+                        Clear();
+                        throw new ConnectorException(t.Message, t);
+                    }
+                }
+            }
         }
     }
 
@@ -162,7 +343,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 operationBuilder.ConnectorFacadeKey = facadeKey;
                 operationBuilder.Locale =
                     MessagesUtil.SerializeMessage<PRB.Locale>(Thread.CurrentThread.CurrentUICulture);
-                return new PRB.RPCRequest {OperationRequest = operationBuilder};
+                return new PRB.RPCRequest { OperationRequest = operationBuilder };
             }
             return null;
         }
@@ -236,8 +417,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public AuthenticationAsyncApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, IdentityConnectors.Framework.Api.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -281,7 +462,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                 await
                     SubmitRequest<Uid, PRB.AuthenticateOpResponse, InternalRequest>(
                         new InternalRequestFactory(ConnectorKey,
-                            FacadeKeyFunction, new PRB.OperationRequest {AuthenticateOpRequest = requestBuilder},
+                            FacadeKeyFunction, new PRB.OperationRequest { AuthenticateOpRequest = requestBuilder },
                             cancellationToken));
         }
 
@@ -415,8 +596,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public CreateAsyncApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, API.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -463,7 +644,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
 
             return
                 SubmitRequest<Uid, PRB.CreateOpResponse, InternalCreateRequest>(new InternalRequestFactory(ConnectorKey,
-                    FacadeKeyFunction, new PRB.OperationRequest {CreateOpRequest = requestBuilder},
+                    FacadeKeyFunction, new PRB.OperationRequest { CreateOpRequest = requestBuilder },
                     cancellationToken));
         }
 
@@ -594,8 +775,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public DeleteAsyncApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, API.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -635,7 +816,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             }
             return SubmitRequest<Object, PRB.DeleteOpResponse, InternalDeleteRequest>(
                 new InternalRequestFactory(ConnectorKey, FacadeKeyFunction, new
-                    PRB.OperationRequest {DeleteOpRequest = requestBuilder}, cancellationToken));
+                    PRB.OperationRequest { DeleteOpRequest = requestBuilder }, cancellationToken));
         }
 
         private class InternalRequestFactory : AbstractRemoteOperationRequestFactory<Object, InternalDeleteRequest>
@@ -759,8 +940,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public GetAsyncApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, API.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -802,7 +983,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             return
                 SubmitRequest<ConnectorObject, PRB.GetOpResponse, InternalRequest>(
                     new InternalRequestFactory(ConnectorKey,
-                        FacadeKeyFunction, new PRB.OperationRequest {GetOpRequest = requestBuilder},
+                        FacadeKeyFunction, new PRB.OperationRequest { GetOpRequest = requestBuilder },
                         cancellationToken));
         }
 
@@ -941,8 +1122,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public ResolveUsernameAsyncApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, API.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -984,7 +1165,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             return await
                 SubmitRequest<Uid, PRB.ResolveUsernameOpResponse, InternalRequest>(
                     new InternalRequestFactory(ConnectorKey,
-                        FacadeKeyFunction, new PRB.OperationRequest {ResolveUsernameOpRequest = requestBuilder},
+                        FacadeKeyFunction, new PRB.OperationRequest { ResolveUsernameOpRequest = requestBuilder },
                         cancellationToken));
         }
 
@@ -1127,8 +1308,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public SchemaAsyncApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, API.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -1149,7 +1330,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             return await
                 SubmitRequest<Schema, PRB.SchemaOpResponse, InternalRequest>(new InternalRequestFactory(ConnectorKey,
                     FacadeKeyFunction,
-                    new PRB.OperationRequest {SchemaOpRequest = new PRB.SchemaOpRequest()},
+                    new PRB.OperationRequest { SchemaOpRequest = new PRB.SchemaOpRequest() },
                     cancellationToken));
         }
 
@@ -1288,8 +1469,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public ScriptOnConnectorAsyncApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, API.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -1322,7 +1503,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             return
                 SubmitRequest<Object, PRB.ScriptOnConnectorOpResponse, InternalRequest>(
                     new InternalRequestFactory(ConnectorKey, FacadeKeyFunction,
-                        new PRB.OperationRequest {ScriptOnConnectorOpRequest = requestBuilder},
+                        new PRB.OperationRequest { ScriptOnConnectorOpRequest = requestBuilder },
                         cancellationToken));
         }
 
@@ -1471,8 +1652,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public ScriptOnResourceAsyncApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, API.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -1507,7 +1688,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             return await
                 SubmitRequest<Object, PRB.ScriptOnResourceOpResponse, InternalRequest>(
                     new InternalRequestFactory(ConnectorKey, FacadeKeyFunction,
-                        new PRB.OperationRequest {ScriptOnResourceOpRequest = requestBuilder}, cancellationToken));
+                        new PRB.OperationRequest { ScriptOnResourceOpRequest = requestBuilder }, cancellationToken));
         }
 
         private class InternalRequestFactory : AbstractRemoteOperationRequestFactory<Object, InternalRequest>
@@ -1650,13 +1831,13 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
 
     #region SearchAsyncApiOpImpl
 
-    public class SearchAsyncApiOpImpl : AbstractAPIOperation, ISearchAsyncApiOp
+    public class SearchAsyncApiOpImpl : AbstractAPIOperation, SearchApiOp
     {
         public SearchAsyncApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, API.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -1684,7 +1865,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             Assertions.NullCheck(handler, "handler");
 
             PRB.SearchOpRequest requestBuilder = new
-                PRB.SearchOpRequest {ObjectClass = objectClass.GetObjectClassValue()};
+                PRB.SearchOpRequest { ObjectClass = objectClass.GetObjectClassValue() };
             if (filter != null)
             {
                 requestBuilder.Filter = MessagesUtil.SerializeLegacy(filter);
@@ -1697,7 +1878,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             return await
                 SubmitRequest<SearchResult, PRB.SearchOpResponse, InternalRequest>(
                     new InternalRequestFactory(ConnectorKey,
-                        FacadeKeyFunction, new PRB.OperationRequest {SearchOpRequest = requestBuilder}, handler,
+                        FacadeKeyFunction, new PRB.OperationRequest { SearchOpRequest = requestBuilder }, handler,
                         cancellationToken));
         }
 
@@ -1894,7 +2075,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                     }
                 }, operationOptions);
 
-                PRB.SearchOpResponse response = new PRB.SearchOpResponse {Sequence = _sequence};
+                PRB.SearchOpResponse response = new PRB.SearchOpResponse { Sequence = _sequence };
                 if (null != searchResult)
                 {
                     response.Result = MessagesUtil.SerializeMessage<PRB.SearchResult>(searchResult);
@@ -1914,13 +2095,13 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
 
     #region SyncAsyncApiOpImpl
 
-    public class SyncAsyncApiOpImpl : AbstractAPIOperation, ISyncAsyncApiOp
+    public class SyncAsyncApiOpImpl : AbstractAPIOperation, SyncApiOp
     {
         public SyncAsyncApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, API.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -1975,7 +2156,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
             Assertions.NullCheck(objectClass, "objectClass");
             Assertions.NullCheck(handler, "handler");
             PRB.SyncOpRequest.Types.Sync requestBuilder =
-                new PRB.SyncOpRequest.Types.Sync {ObjectClass = objectClass.GetObjectClassValue()};
+                new PRB.SyncOpRequest.Types.Sync { ObjectClass = objectClass.GetObjectClassValue() };
             if (token != null)
             {
                 requestBuilder.Token = MessagesUtil.SerializeMessage<PRB.SyncToken>(token);
@@ -1991,7 +2172,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                     FacadeKeyFunction,
                     new PRB.OperationRequest
                     {
-                        SyncOpRequest = new PRB.SyncOpRequest {Sync = requestBuilder}
+                        SyncOpRequest = new PRB.SyncOpRequest { Sync = requestBuilder }
                     }, handler,
                     cancellationToken));
         }
@@ -2183,7 +2364,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                     {
                         builder.SyncToken = MessagesUtil.SerializeMessage<PRB.SyncToken>(token);
                     }
-                    return new PRB.SyncOpResponse {LatestSyncToken = builder};
+                    return new PRB.SyncOpResponse { LatestSyncToken = builder };
                 }
                 else if (null != requestMessage.Sync)
                 {
@@ -2227,13 +2408,13 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
                     }, operationOptions);
 
                     PRB.SyncOpResponse.Types.Sync builder =
-                        new PRB.SyncOpResponse.Types.Sync {Sequence = _sequence};
+                        new PRB.SyncOpResponse.Types.Sync { Sequence = _sequence };
                     if (null != syncResult)
                     {
                         builder.SyncToken = MessagesUtil.SerializeMessage<PRB.SyncToken>(syncResult);
                     }
 
-                    return new PRB.SyncOpResponse {Sync = builder};
+                    return new PRB.SyncOpResponse { Sync = builder };
                 }
                 else
                 {
@@ -2264,8 +2445,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public TestAsyncApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, API.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -2284,7 +2465,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public async Task TestAsync(CancellationToken cancellationToken)
         {
             await SubmitRequest<Object, PRB.TestOpResponse, InternalRequest>(new InternalRequestFactory(ConnectorKey,
-                FacadeKeyFunction, new PRB.OperationRequest {TestOpRequest = new PRB.TestOpRequest()},
+                FacadeKeyFunction, new PRB.OperationRequest { TestOpRequest = new PRB.TestOpRequest() },
                 cancellationToken));
         }
 
@@ -2411,8 +2592,8 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         public UpdateAsyncApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, API.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -2506,7 +2687,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
 
             return await
                 SubmitRequest<Uid, PRB.UpdateOpResponse, InternalRequest>(new InternalRequestFactory(ConnectorKey,
-                    FacadeKeyFunction, new PRB.OperationRequest {UpdateOpRequest = requestBuilder},
+                    FacadeKeyFunction, new PRB.OperationRequest { UpdateOpRequest = requestBuilder },
                     cancellationToken));
         }
 
@@ -2661,15 +2842,15 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
 
     #endregion
 
-    #region SyncEventSubscriptionApiOpImpl
+    #region ValidateAsyncApiOpImpl
 
     public class ValidateAsyncApiOpImpl : AbstractAPIOperation, IValidateAsyncApiOp
     {
         public ValidateAsyncApiOpImpl(
             IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                 remoteConnection, API.ConnectorKey connectorKey,
-            Func<RemoteOperationContext, ByteString> facadeKeyFunction)
-            : base(remoteConnection, connectorKey, facadeKeyFunction)
+            Func<RemoteOperationContext, ByteString> facadeKeyFunction, long timeout)
+            : base(remoteConnection, connectorKey, facadeKeyFunction, timeout)
         {
         }
 
@@ -2689,7 +2870,7 @@ namespace Org.ForgeRock.OpenICF.Framework.Remote
         {
             await SubmitRequest<Object, PRB.ValidateOpResponse, InternalRequest>(
                 new InternalRequestFactory(ConnectorKey, FacadeKeyFunction,
-                    new PRB.OperationRequest {ValidateOpRequest = new PRB.ValidateOpRequest()},
+                    new PRB.OperationRequest { ValidateOpRequest = new PRB.ValidateOpRequest() },
                     cancellationToken));
         }
 

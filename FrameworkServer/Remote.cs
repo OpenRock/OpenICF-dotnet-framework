@@ -41,6 +41,7 @@ using Org.BouncyCastle.Crypto.Tls;
 using Org.BouncyCastle.Security;
 using Org.ForgeRock.OpenICF.Common.RPC;
 using Org.IdentityConnectors.Common;
+using Org.IdentityConnectors.Common.Proxy;
 using Org.IdentityConnectors.Common.Security;
 using Org.IdentityConnectors.Framework.Api.Operations;
 using Org.IdentityConnectors.Framework.Common;
@@ -224,7 +225,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
         protected ConnectionPrincipal(
             IMessageListener<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext> listener,
             ConcurrentDictionary<string, WebSocketConnectionGroup> globalConnectionGroups)
-            : base(new GenericIdentity(DefaultName), new[] {"connector"})
+            : base(new GenericIdentity(DefaultName), new[] { "connector" })
         {
             _listener = listener;
             _globalConnectionGroups = globalConnectionGroups;
@@ -469,14 +470,14 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 int result = String.Compare(left.BundleName, right.BundleName, StringComparison.Ordinal);
                 if (result != 0)
                 {
-                    return result*-1;
+                    return result * -1;
                 }
                 result = String.Compare(left.ConnectorName, right.ConnectorName, StringComparison.Ordinal);
                 if (result != 0)
                 {
-                    return result*-1;
+                    return result * -1;
                 }
-                return String.Compare(left.BundleVersion, right.BundleVersion, StringComparison.Ordinal)*-1;
+                return String.Compare(left.BundleVersion, right.BundleVersion, StringComparison.Ordinal) * -1;
             }
         }
 
@@ -534,8 +535,8 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 List<API.ConnectorInfo> resultList = new List<API.ConnectorInfo>(_managedConnectorInfos.Count);
                 resultList.AddRange(
                     (from entry in _managedConnectorInfos.Values
-                        where null != entry.ConnectorInfo
-                        select entry.ConnectorInfo).Select(dummy => (API.ConnectorInfo) dummy));
+                     where null != entry.ConnectorInfo
+                     select entry.ConnectorInfo).Select(dummy => (API.ConnectorInfo)dummy));
                 return resultList;
             }
         }
@@ -740,7 +741,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             string message = null;
             try
             {
-                string throwableClass = exceptionMessage.ExceptionClass ?? typeof (ConnectorException).FullName;
+                string throwableClass = exceptionMessage.ExceptionClass ?? typeof(ConnectorException).FullName;
                 message = exceptionMessage.Message ?? "";
                 string stackTrace = !String.IsNullOrEmpty(exceptionMessage.StackTrace)
                     ? exceptionMessage.StackTrace
@@ -761,7 +762,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
         {
             if (null != cause)
             {
-                string throwableClass = cause.ExceptionClass ?? typeof (ConnectorException).FullName;
+                string throwableClass = cause.ExceptionClass ?? typeof(ConnectorException).FullName;
                 string message = cause.Message ?? "";
                 RemoteWrappedException originalCause = cause.Cause != null ? GetCause(cause.Cause) : null;
                 return new RemoteWrappedException(throwableClass, message, originalCause, null);
@@ -816,7 +817,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             {
                 return default(T);
             }
-            return (T) SerializerUtil.DeserializeBinaryObject(byteString.ToByteArray());
+            return (T)SerializerUtil.DeserializeBinaryObject(byteString.ToByteArray());
         }
 
         [Obsolete]
@@ -835,31 +836,31 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             {
                 return default(T);
             }
-            var type = typeof (T);
+            var type = typeof(T);
             // UID
-            if (typeof (IdentityConnectors.Framework.Common.Objects.Uid) == type)
+            if (typeof(IdentityConnectors.Framework.Common.Objects.Uid) == type)
             {
                 var from = source as PRB.Uid;
                 if (null != from)
                 {
                     if (String.IsNullOrEmpty(from.Revision))
                     {
-                        return (T) (object) new IdentityConnectors.Framework.Common.Objects.Uid(from.Value);
+                        return (T)(object)new IdentityConnectors.Framework.Common.Objects.Uid(from.Value);
                     }
-                    return (T) (object) new IdentityConnectors.Framework.Common.Objects.Uid(from.Value, from.Revision);
+                    return (T)(object)new IdentityConnectors.Framework.Common.Objects.Uid(from.Value, from.Revision);
                 }
             }
             //ConnectorKey
-            if (typeof (API.ConnectorKey) == type)
+            if (typeof(API.ConnectorKey) == type)
             {
                 var from = source as Common.ProtoBuf.ConnectorKey;
                 if (null != from)
                 {
-                    return (T) (object) new API.ConnectorKey(from.BundleName, from.BundleVersion, from.ConnectorName);
+                    return (T)(object)new API.ConnectorKey(from.BundleName, from.BundleVersion, from.ConnectorName);
                 }
             }
             //ScriptContext
-            if (typeof (OBJ.ScriptContext) == type)
+            if (typeof(OBJ.ScriptContext) == type)
             {
                 var from = source as Common.ProtoBuf.ScriptContext;
                 if (null != from)
@@ -875,16 +876,16 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
             }
             //SearchResult
-            if (typeof (OBJ.SearchResult) == type)
+            if (typeof(OBJ.SearchResult) == type)
             {
                 var from = source as Common.ProtoBuf.SearchResult;
                 if (null != from)
                 {
-                    return (T) (object) new OBJ.SearchResult(from.PagedResultsCookie, from.RemainingPagedResults);
+                    return (T)(object)new OBJ.SearchResult(from.PagedResultsCookie, from.RemainingPagedResults);
                 }
             }
             //ConnectorObject
-            if (typeof (OBJ.ConnectorObject) == type)
+            if (typeof(OBJ.ConnectorObject) == type)
             {
                 var from = source as Common.ProtoBuf.ConnectorObject;
                 if (null != from)
@@ -892,11 +893,11 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                     ICollection<Object> attsObj = DeserializeLegacy<ICollection<Object>>(from.Attributes);
                     ICollection<OBJ.ConnectorAttribute> atts =
                         CollectionUtil.NewSet<Object, OBJ.ConnectorAttribute>(attsObj);
-                    return (T) (object) new OBJ.ConnectorObject(new OBJ.ObjectClass(from.ObjectClass), atts);
+                    return (T)(object)new OBJ.ConnectorObject(new OBJ.ObjectClass(from.ObjectClass), atts);
                 }
             }
             //Locale/CultureInfo
-            if (typeof (CultureInfo) == type)
+            if (typeof(CultureInfo) == type)
             {
                 var from = source as Common.ProtoBuf.Locale;
                 if (null != from)
@@ -909,16 +910,16 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
             }
             //SyncToken
-            if (typeof (OBJ.SyncToken) == type)
+            if (typeof(OBJ.SyncToken) == type)
             {
                 var from = source as Common.ProtoBuf.SyncToken;
                 if (null != from)
                 {
-                    return (T) (object) new OBJ.SyncToken(DeserializeLegacy<object>(from.Value));
+                    return (T)(object)new OBJ.SyncToken(DeserializeLegacy<object>(from.Value));
                 }
             }
             //SyncDelta
-            if (typeof (IdentityConnectors.Framework.Common.Objects.SyncDelta) == type)
+            if (typeof(IdentityConnectors.Framework.Common.Objects.SyncDelta) == type)
             {
                 var from = source as Org.ForgeRock.OpenICF.Common.ProtoBuf.SyncDelta;
                 if (null != from)
@@ -960,7 +961,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                             CollectionUtil.NewSet<Object, OBJ.ConnectorAttribute>(attsObj);
                         builder.Object = new OBJ.ConnectorObject(builder.ObjectClass, atts);
                     }
-                    return (T) (object) builder.Build();
+                    return (T)(object)builder.Build();
                 }
             }
 
@@ -973,9 +974,9 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             {
                 return default(T);
             }
-            var type = typeof (T);
+            var type = typeof(T);
             // UID
-            if (typeof (PRB.Uid) == type)
+            if (typeof(PRB.Uid) == type)
             {
                 var from = source as IdentityConnectors.Framework.Common.Objects.Uid;
                 if (null != from)
@@ -985,16 +986,16 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                         Value = from.GetUidValue()
                     };
                     if (null != from.Revision) to.Revision = from.Revision;
-                    return (T) (object) to;
+                    return (T)(object)to;
                 }
             }
             //ConnectorKey
-            if (typeof (Common.ProtoBuf.ConnectorKey) == type)
+            if (typeof(Common.ProtoBuf.ConnectorKey) == type)
             {
                 var from = source as API.ConnectorKey;
                 if (null != from)
                 {
-                    return (T) (object) new Common.ProtoBuf.ConnectorKey
+                    return (T)(object)new Common.ProtoBuf.ConnectorKey
                     {
                         BundleName = from.BundleName,
                         BundleVersion = from.BundleVersion,
@@ -1003,12 +1004,12 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
             }
             //ScriptContext
-            if (typeof (Common.ProtoBuf.ScriptContext) == type)
+            if (typeof(Common.ProtoBuf.ScriptContext) == type)
             {
                 var from = source as OBJ.ScriptContext;
                 if (null != from)
                 {
-                    return (T) (object) new Common.ProtoBuf.ScriptContext
+                    return (T)(object)new Common.ProtoBuf.ScriptContext
                     {
                         Script = new Common.ProtoBuf.Script
                         {
@@ -1020,7 +1021,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
             }
             //SearchResult
-            if (typeof (Common.ProtoBuf.SearchResult) == type)
+            if (typeof(Common.ProtoBuf.SearchResult) == type)
             {
                 var from = source as OBJ.SearchResult;
                 if (null != from)
@@ -1036,12 +1037,12 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
             }
             //ConnectorObject
-            if (typeof (Common.ProtoBuf.ConnectorObject) == type)
+            if (typeof(Common.ProtoBuf.ConnectorObject) == type)
             {
                 var from = source as OBJ.ConnectorObject;
                 if (null != from)
                 {
-                    return (T) (object) new Common.ProtoBuf.ConnectorObject
+                    return (T)(object)new Common.ProtoBuf.ConnectorObject
                     {
                         ObjectClass = from.ObjectClass.GetObjectClassValue(),
                         Attributes = SerializeLegacy(from.GetAttributes())
@@ -1049,13 +1050,13 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
             }
             //Locale/CultureInfo
-            if (typeof (Common.ProtoBuf.Locale) == type)
+            if (typeof(Common.ProtoBuf.Locale) == type)
             {
                 var from = source as CultureInfo;
                 if (null != from)
                 {
                     Org.IdentityConnectors.Common.Locale locale = Org.IdentityConnectors.Common.Locale.FindLocale(from);
-                    return (T) (object) new PRB.Locale
+                    return (T)(object)new PRB.Locale
                     {
                         Language = locale.Language,
                         Country = locale.Country,
@@ -1064,19 +1065,19 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
             }
             //SyncToken
-            if (typeof (Common.ProtoBuf.SyncToken) == type)
+            if (typeof(Common.ProtoBuf.SyncToken) == type)
             {
                 var from = source as OBJ.SyncToken;
                 if (null != from)
                 {
-                    return (T) (object) new Common.ProtoBuf.SyncToken
+                    return (T)(object)new Common.ProtoBuf.SyncToken
                     {
                         Value = SerializeLegacy(from.Value)
                     };
                 }
             }
             //SyncDelta
-            if (typeof (Org.ForgeRock.OpenICF.Common.ProtoBuf.SyncDelta) == type)
+            if (typeof(Org.ForgeRock.OpenICF.Common.ProtoBuf.SyncDelta) == type)
             {
                 var from = source as IdentityConnectors.Framework.Common.Objects.SyncDelta;
                 if (null != from)
@@ -1122,7 +1123,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                         builder.PreviousUid = SerializeMessage<PRB.Uid>(from.PreviousUid);
                     }
 
-                    return (T) (object) builder;
+                    return (T)(object)builder;
                 }
             }
             throw new NotImplementedException("To not supported");
@@ -1375,7 +1376,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
             PRB.HandshakeMessage message)
         {
             PRB.RemoteMessage responseBuilder = MessagesUtil.CreateResponse(messageId, new
-                PRB.RPCResponse {HandshakeMessage = _handshakeMessage});
+                PRB.RPCResponse { HandshakeMessage = _handshakeMessage });
             socket.SendBytesAsync(responseBuilder.ToByteArray(), CancellationToken.None);
             // Set Operational
             socket.ReceiveHandshake(message);
@@ -1403,13 +1404,13 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 {
                     IList<Org.IdentityConnectors.Framework.Impl.Api.Remote.RemoteConnectorInfoImpl> connectorInfos =
                         _connectorInfoManager.ConnectorInfos.Select(
-                            ci => toRemote((AbstractConnectorInfo) ci)
+                            ci => toRemote((AbstractConnectorInfo)ci)
                             ).ToList();
                     ByteString response = MessagesUtil.SerializeLegacy(connectorInfos);
                     builder.ConnectorInfos = response;
                 }
             }
-
+            socket.RemoteConnectionContext.RemoteConnectionGroup.ProcessControlRequest(message);
             PRB.RemoteMessage responseBuilder = MessagesUtil.CreateResponse(messageId,
                 new PRB.RPCResponse
                 {
@@ -1861,8 +1862,8 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
         private readonly ISchemaAsyncApiOp _schemaApiOp;
         private readonly IScriptOnConnectorAsyncApiOp _scriptOnConnectorApiOp;
         private readonly IScriptOnResourceAsyncApiOp _scriptOnResourceApiOp;
-        private readonly ISearchAsyncApiOp _searchApiOp;
-        private readonly ISyncAsyncApiOp _syncApiOp;
+        private readonly SearchApiOp _searchApiOp;
+        private readonly SyncApiOp _syncApiOp;
         private readonly ISyncEventSubscriptionApiOp _syncEventSubscriptionApiOp;
         private readonly ITestAsyncApiOp _testApiOp;
         private readonly IUpdateAsyncApiOp _updateApiOp;
@@ -1905,7 +1906,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 IRequestDistributor<WebSocketConnectionGroup, WebSocketConnectionHolder, RemoteOperationContext>
                     remoteConnection =
                         Assertions.NullChecked(
-                            ((RemoteConnectorInfoImpl) configuration.ConnectorInfo).messageDistributor,
+                            ((RemoteConnectorInfoImpl)configuration.ConnectorInfo).messageDistributor,
                             "messageDistributor");
 
                 API.ConnectorKey connectorKey = GetAPIConfiguration().ConnectorInfo.ConnectorKey;
@@ -1978,8 +1979,8 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 // initialise operations
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<AuthenticationApiOp>()))
                 {
-                    _authenticationApiOp = new AuthenticationAsyncApiOpImpl(remoteConnection, connectorKey,
-                        facadeKeyFunction);
+                    _authenticationApiOp = CreateLogging(SafeType<APIOperation>.Get<AuthenticationApiOp>(), new AuthenticationAsyncApiOpImpl(remoteConnection, connectorKey,
+                        facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<AuthenticationApiOp>())));
                 }
                 else
                 {
@@ -1987,7 +1988,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<CreateApiOp>()))
                 {
-                    _createApiOp = new CreateAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _createApiOp = CreateLogging(SafeType<APIOperation>.Get<CreateApiOp>(), new CreateAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<CreateApiOp>())));
                 }
                 else
                 {
@@ -1995,9 +1996,9 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<IConnectorEventSubscriptionApiOp>()))
                 {
-                    _connectorEventSubscriptionApiOp = new ConnectorEventSubscriptionApiOpImpl(remoteConnection,
+                    _connectorEventSubscriptionApiOp = CreateLogging(SafeType<APIOperation>.Get<IConnectorEventSubscriptionApiOp>(), new ConnectorEventSubscriptionApiOpImpl(remoteConnection,
                         connectorKey,
-                        facadeKeyFunction);
+                        facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<IConnectorEventSubscriptionApiOp>())));
                 }
                 else
                 {
@@ -2005,7 +2006,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<DeleteApiOp>()))
                 {
-                    _deleteApiOp = new DeleteAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _deleteApiOp = CreateLogging(SafeType<APIOperation>.Get<DeleteApiOp>(), new DeleteAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<DeleteApiOp>())));
                 }
                 else
                 {
@@ -2013,8 +2014,8 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<ResolveUsernameApiOp>()))
                 {
-                    _resolveUsernameApiOp = new ResolveUsernameAsyncApiOpImpl(remoteConnection, connectorKey,
-                        facadeKeyFunction);
+                    _resolveUsernameApiOp = CreateLogging(SafeType<APIOperation>.Get<ResolveUsernameApiOp>(), new ResolveUsernameAsyncApiOpImpl(remoteConnection, connectorKey,
+                        facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<ResolveUsernameApiOp>())));
                 }
                 else
                 {
@@ -2022,7 +2023,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<SchemaApiOp>()))
                 {
-                    _schemaApiOp = new SchemaAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _schemaApiOp = CreateLogging(SafeType<APIOperation>.Get<SchemaApiOp>(), new SchemaAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<SchemaApiOp>())));
                 }
                 else
                 {
@@ -2030,8 +2031,8 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<ScriptOnConnectorApiOp>()))
                 {
-                    _scriptOnConnectorApiOp = new ScriptOnConnectorAsyncApiOpImpl(remoteConnection, connectorKey,
-                        facadeKeyFunction);
+                    _scriptOnConnectorApiOp = CreateLogging(SafeType<APIOperation>.Get<ScriptOnConnectorApiOp>(), new ScriptOnConnectorAsyncApiOpImpl(remoteConnection, connectorKey,
+                        facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<ScriptOnConnectorApiOp>())));
                 }
                 else
                 {
@@ -2039,8 +2040,8 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<ScriptOnResourceApiOp>()))
                 {
-                    _scriptOnResourceApiOp = new ScriptOnResourceAsyncApiOpImpl(remoteConnection, connectorKey,
-                        facadeKeyFunction);
+                    _scriptOnResourceApiOp = CreateLogging(SafeType<APIOperation>.Get<ScriptOnResourceApiOp>(), new ScriptOnResourceAsyncApiOpImpl(remoteConnection, connectorKey,
+                        facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<ScriptOnResourceApiOp>())));
                 }
                 else
                 {
@@ -2048,8 +2049,8 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<SearchApiOp>()))
                 {
-                    _searchApiOp = new SearchAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
-                    _getApiOp = new GetAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _searchApiOp = CreateLogging(SafeType<APIOperation>.Get<SearchApiOp>(), new SearchAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<SearchApiOp>())));
+                    _getApiOp = CreateLogging(SafeType<APIOperation>.Get<GetApiOp>(), new GetAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<GetApiOp>())));
                 }
                 else
                 {
@@ -2058,7 +2059,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<SyncApiOp>()))
                 {
-                    _syncApiOp = new SyncAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _syncApiOp = CreateLogging(SafeType<APIOperation>.Get<SyncApiOp>(), new SyncAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<SyncApiOp>())));
                 }
                 else
                 {
@@ -2066,8 +2067,8 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<ISyncEventSubscriptionApiOp>()))
                 {
-                    _syncEventSubscriptionApiOp = new SyncEventSubscriptionApiOpImpl(remoteConnection, connectorKey,
-                        facadeKeyFunction);
+                    _syncEventSubscriptionApiOp = CreateLogging(SafeType<APIOperation>.Get<ISyncEventSubscriptionApiOp>(), new SyncEventSubscriptionApiOpImpl(remoteConnection, connectorKey,
+                        facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<ISyncEventSubscriptionApiOp>())));
                 }
                 else
                 {
@@ -2075,7 +2076,7 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<TestApiOp>()))
                 {
-                    _testApiOp = new TestAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _testApiOp = CreateLogging(SafeType<APIOperation>.Get<TestApiOp>(), new TestAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<TestApiOp>())));
                 }
                 else
                 {
@@ -2083,13 +2084,13 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 }
                 if (configuration.IsSupportedOperation(SafeType<APIOperation>.Get<UpdateApiOp>()))
                 {
-                    _updateApiOp = new UpdateAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                    _updateApiOp = CreateLogging(SafeType<APIOperation>.Get<UpdateApiOp>(), new UpdateAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<UpdateApiOp>())));
                 }
                 else
                 {
                     _updateApiOp = null;
                 }
-                _validateApiOp = new ValidateAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction);
+                _validateApiOp = CreateLogging(SafeType<APIOperation>.Get<ValidateApiOp>(), new ValidateAsyncApiOpImpl(remoteConnection, connectorKey, facadeKeyFunction, GetAPIConfiguration().GetTimeout(SafeType<APIOperation>.Get<ValidateApiOp>())));
             }
             else
             {
@@ -2098,87 +2099,98 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
         }
 
 
+        protected T CreateLogging<T>(SafeType<APIOperation> api, T target)
+        {
+            T ret = target;
+            if (LOGGINGPROXY_ENABLED)
+            {
+                ret = (T)Proxy.NewProxyInstance(typeof(T), new LoggingProxy(api, target));
+            }
+            return ret;
+        }
+
         public RemoteAsyncConnectorFacade(RemoteConnectorInfoImpl firstConnectorInfo,
             Func<ILoadBalancingConnectorFacadeContext, API.APIConfiguration> transformer)
-            : this((APIConfigurationImpl) firstConnectorInfo.CreateDefaultAPIConfiguration(), transformer)
+            : this((APIConfigurationImpl)firstConnectorInfo.CreateDefaultAPIConfiguration(), transformer)
         {
         }
 
-        public RemoteAsyncConnectorFacade(APIConfigurationImpl configuration) : this(configuration, null)
+        public RemoteAsyncConnectorFacade(APIConfigurationImpl configuration)
+            : this(configuration, null)
         {
         }
 
         protected internal virtual T GetAsyncOperationCheckSupported<T>() where T : APIOperation
         {
-            T op = (T) GetOperationImplementation(SafeType<APIOperation>.ForRawType(typeof (T)));
+            T op = (T)GetOperationImplementation(SafeType<APIOperation>.ForRawType(typeof(T)));
 
             // check if this operation is supported.
             if (null == op)
             {
-                throw new NotSupportedException(String.Format(Msg, typeof (T)));
+                throw new NotSupportedException(String.Format(Msg, typeof(T)));
             }
             return op;
         }
 
         protected override APIOperation GetOperationImplementation(SafeType<APIOperation> api)
         {
-            if (typeof (AuthenticationApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(AuthenticationApiOp).IsAssignableFrom(api.RawType))
             {
                 return _authenticationApiOp;
             }
-            if (typeof (CreateApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(CreateApiOp).IsAssignableFrom(api.RawType))
             {
                 return _createApiOp;
             }
-            if (typeof (IConnectorEventSubscriptionApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(IConnectorEventSubscriptionApiOp).IsAssignableFrom(api.RawType))
             {
                 return _connectorEventSubscriptionApiOp;
             }
-            if (typeof (DeleteApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(DeleteApiOp).IsAssignableFrom(api.RawType))
             {
                 return _deleteApiOp;
             }
-            if (typeof (GetApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(GetApiOp).IsAssignableFrom(api.RawType))
             {
                 return _getApiOp;
             }
-            if (typeof (ResolveUsernameApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(ResolveUsernameApiOp).IsAssignableFrom(api.RawType))
             {
                 return _resolveUsernameApiOp;
             }
-            if (typeof (SchemaApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(SchemaApiOp).IsAssignableFrom(api.RawType))
             {
                 return _schemaApiOp;
             }
-            if (typeof (ScriptOnConnectorApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(ScriptOnConnectorApiOp).IsAssignableFrom(api.RawType))
             {
                 return _scriptOnConnectorApiOp;
             }
-            if (typeof (ScriptOnResourceApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(ScriptOnResourceApiOp).IsAssignableFrom(api.RawType))
             {
                 return _scriptOnResourceApiOp;
             }
-            if (typeof (SearchApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(SearchApiOp).IsAssignableFrom(api.RawType))
             {
                 return _searchApiOp;
             }
-            if (typeof (SyncApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(SyncApiOp).IsAssignableFrom(api.RawType))
             {
                 return _syncApiOp;
             }
-            if (typeof (ISyncEventSubscriptionApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(ISyncEventSubscriptionApiOp).IsAssignableFrom(api.RawType))
             {
                 return _syncEventSubscriptionApiOp;
             }
-            if (typeof (TestApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(TestApiOp).IsAssignableFrom(api.RawType))
             {
                 return _testApiOp;
             }
-            if (typeof (UpdateApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(UpdateApiOp).IsAssignableFrom(api.RawType))
             {
                 return _updateApiOp;
             }
-            if (typeof (ValidateApiOp).IsAssignableFrom(api.RawType))
+            if (typeof(ValidateApiOp).IsAssignableFrom(api.RawType))
             {
                 return _validateApiOp;
             }
@@ -2244,29 +2256,6 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
         {
             return await GetAsyncOperationCheckSupported<IScriptOnResourceAsyncApiOp>()
                 .RunScriptOnResourceAsync(request, options, cancellationToken);
-        }
-
-        public async Task<OBJ.SearchResult> SearchAsync(OBJ.ObjectClass objectClass, Filter filter,
-            OBJ.ResultsHandler handler,
-            OBJ.OperationOptions options, CancellationToken cancellationToken)
-        {
-            return await GetAsyncOperationCheckSupported<ISearchAsyncApiOp>()
-                .SearchAsync(objectClass, filter, handler, options, cancellationToken);
-        }
-
-        public Task<OBJ.SyncToken> SyncAsync(OBJ.ObjectClass objectClass, OBJ.SyncToken token,
-            OBJ.SyncResultsHandler handler,
-            OBJ.OperationOptions options, CancellationToken cancellationToken)
-        {
-            return GetAsyncOperationCheckSupported<ISyncAsyncApiOp>()
-                .SyncAsync(objectClass, token, handler, options, cancellationToken);
-        }
-
-        public Task<OBJ.SyncToken> GetLatestSyncTokenAsync(OBJ.ObjectClass objectClass,
-            CancellationToken cancellationToken)
-        {
-            return GetAsyncOperationCheckSupported<ISyncAsyncApiOp>()
-                .GetLatestSyncTokenAsync(objectClass, cancellationToken);
         }
 
         public Task TestAsync(CancellationToken cancellationToken)

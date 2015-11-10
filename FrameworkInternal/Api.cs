@@ -371,8 +371,8 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
 
         public int GetTimeout(SafeType<APIOperation> operation)
         {
-            return CollectionUtil.GetValue(_timeoutMap, operation,
-                                           APIConstants.NO_TIMEOUT);
+            return Math.Max(CollectionUtil.GetValue(_timeoutMap, operation,
+                                           APIConstants.NO_TIMEOUT), APIConstants.NO_TIMEOUT);
         }
         public void SetTimeout(SafeType<APIOperation> operation, int timeout)
         {
@@ -898,11 +898,10 @@ namespace Org.IdentityConnectors.Framework.Impl.Api
             return (APIOperation)Proxy.NewProxyInstance(api.RawType, handler);
         }
 
-        private static bool LOGGINGPROXY_ENABLED;
+        protected readonly static bool LOGGINGPROXY_ENABLED;
         static AbstractConnectorFacade()
         {
-            string enabled = System.Configuration.
-                ConfigurationManager.AppSettings.Get("logging.proxy");
+            string enabled = ConfigurationManager.AppSettings.Get("logging.proxy");
             LOGGINGPROXY_ENABLED = StringUtil.IsTrue(enabled);
         }
 
