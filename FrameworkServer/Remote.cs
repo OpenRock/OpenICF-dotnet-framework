@@ -881,7 +881,24 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 var from = source as Common.ProtoBuf.SearchResult;
                 if (null != from)
                 {
-                    return (T)(object)new OBJ.SearchResult(from.PagedResultsCookie, from.RemainingPagedResults);
+                    OBJ.SearchResult.CountPolicy policy = OBJ.SearchResult.CountPolicy.NONE;
+
+                    switch (from.TotalPagedResultsPolicy)
+                    {
+                        case PRB.SearchResult.Types.CountPolicy.EXACT:
+                            {
+                                policy = OBJ.SearchResult.CountPolicy.EXACT;
+                                break;
+                            }
+                        case PRB.SearchResult.Types.CountPolicy.ESTIMATE:
+                            {
+                                policy = OBJ.SearchResult.CountPolicy.ESTIMATE;
+                                break;
+                            }
+                        default: policy = OBJ.SearchResult.CountPolicy.NONE;
+                            break;
+                    }
+                    return (T)(object)new OBJ.SearchResult(from.PagedResultsCookie, policy, from.TotalPagedResults, from.RemainingPagedResults);
                 }
             }
             //ConnectorObject
@@ -1026,12 +1043,32 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
                 var from = source as OBJ.SearchResult;
                 if (null != from)
                 {
+                    PRB.SearchResult.Types.CountPolicy policy;
+                    switch (from.TotalPagedResultsPolicy)
+                    {
+                        case OBJ.SearchResult.CountPolicy.EXACT:
+                            {
+                                policy = PRB.SearchResult.Types.CountPolicy.EXACT;
+                                break;
+                            }
+                        case OBJ.SearchResult.CountPolicy.ESTIMATE:
+                            {
+                                policy = PRB.SearchResult.Types.CountPolicy.ESTIMATE;
+                                break;
+                            }
+                        default:
+                            policy = PRB.SearchResult.Types.CountPolicy.NONE;
+                            break;
+                    }
+
                     return
                         (T)
                             (object)
                                 new Common.ProtoBuf.SearchResult
                                 {
                                     PagedResultsCookie = from.PagedResultsCookie,
+                                    TotalPagedResultsPolicy = policy,
+                                    TotalPagedResults = from.TotalPagedResults,
                                     RemainingPagedResults = from.RemainingPagedResults
                                 };
                 }

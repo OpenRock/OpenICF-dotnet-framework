@@ -1104,6 +1104,50 @@ namespace Org.IdentityConnectors.Framework.Common.Objects.Filters
     }
     #endregion
 
+    #region ExtendedMatchFilter
+    public sealed class ExtendedMatchFilter : AttributeFilter
+    {
+
+        /// <summary>
+        /// Creates a new {@code extended match} filter using the provided operator
+        /// and attribute assertion.
+        /// </summary>
+        /// <param name="operator">
+        ///            The operator. </param>
+        /// <param name="attribute">
+        ///            The assertion value. </param>
+        public ExtendedMatchFilter(string @operator, ConnectorAttribute attribute)
+            : base(attribute)
+        {
+            if (StringUtil.IsBlank(@operator))
+            {
+                throw new ArgumentException("Operator not be null!");
+            }
+            Operator = @operator;
+        }
+
+        public string Operator
+        {
+            get;
+            internal set;
+        }
+
+        /// <summary>
+        /// Framework can not understand this filter, always return true.
+        /// <seealso cref="ConnectorObject"/>.
+        /// </summary>
+        public override bool Accept(ConnectorObject obj)
+        {
+            return true;
+        }
+
+        public override TR Accept<TR, TP>(FilterVisitor<TR, TP> v, TP p)
+        {
+            return v.VisitExtendedFilter(p, this);
+        }
+    }
+    #endregion
+
     #region Filter
     public interface Filter
     {
@@ -1416,6 +1460,20 @@ namespace Org.IdentityConnectors.Framework.Common.Objects.Filters
         }
 
         /// <summary>
+        /// Creates a new {@code extended match} filter using the provided operator
+        /// and attribute assertion.
+        /// </summary>
+        /// <param name="operator">
+        ///            The operator. </param>
+        /// <param name="attribute">
+        ///            The assertion value.</param>
+        /// <remarks>Since 1.5</remarks>
+        public static Filter ExtendedMatch(string @operator, ConnectorAttribute attribute)
+        {
+            return new ExtendedMatchFilter(@operator, attribute);
+        }
+
+        /// <summary>
         /// Ands the two <see cref="Filter" />.
         /// </summary>
         /// <param name="leftOperand">left side operand.</param>
@@ -1502,6 +1560,7 @@ namespace Org.IdentityConnectors.Framework.Common.Objects.Filters
         ///            The name of field within the <seealso cref="Org.IdentityConnectors.Framework.Common.Objects.ConnectorObject"/> which must be
         ///            present. </param>
         /// <returns> The newly created {@code presence} filter. </returns>
+        /// <remarks>Since 1.5</remarks>
         public static Filter Present(string attributeName)
         {
             return new PresenceFilter(attributeName);

@@ -1755,6 +1755,8 @@ namespace Org.IdentityConnectors.Framework.Impl.Serializer
             HANDLERS.Add(new ConnectorObjectHandler());
             HANDLERS.Add(new NameHandler());
             HANDLERS.Add(new ObjectClassHandler());
+            HANDLERS.Add(new EnumSerializationHandler(typeof(SearchResult.CountPolicy),
+                                                       "CountPolicy"));
             HANDLERS.Add(new SearchResultHandler());
             HANDLERS.Add(new SortKeyHandler());
             HANDLERS.Add(new ObjectClassInfoHandler());
@@ -2488,14 +2490,22 @@ namespace Org.IdentityConnectors.Framework.Impl.Serializer
             }
             public override Object Deserialize(ObjectDecoder decoder)
             {
-                return new SearchResult(decoder.ReadStringField("pagedResultsCookie", null), decoder.ReadIntField("remainingPagedResults", -1));
+                String pagedResultsCookie = decoder.ReadStringField("pagedResultsCookie", null);
+                int totalPagedResults = decoder.ReadIntField("totalPagedResults", -1);
+                int remainingPagedResults = decoder.ReadIntField("remainingPagedResults", -1);
+                SearchResult.CountPolicy policy =
+                    (SearchResult.CountPolicy)
+                        decoder.ReadObjectField("CountPolicy", typeof (SearchResult.CountPolicy), null);
+                return new SearchResult(pagedResultsCookie, policy, totalPagedResults, remainingPagedResults);
             }
 
             public override void Serialize(Object obj, ObjectEncoder encoder)
             {
                 SearchResult val = (SearchResult)obj;
                 encoder.WriteStringField("pagedResultsCookie", val.PagedResultsCookie);
+                encoder.WriteIntField("totalPagedResults", val.TotalPagedResults);
                 encoder.WriteIntField("remainingPagedResults", val.RemainingPagedResults);
+                encoder.WriteObjectField("CountPolicy", val.TotalPagedResultsPolicy, true);
             }
         }
         private class SortKeyHandler : AbstractObjectSerializationHandler
@@ -2622,12 +2632,14 @@ namespace Org.IdentityConnectors.Framework.Impl.Serializer
             HANDLERS.Add(new ContainsFilterHandler());
             HANDLERS.Add(new EndsWithFilterHandler());
             HANDLERS.Add(new EqualsFilterHandler());
+            HANDLERS.Add(new ExtendedMatchFilterHandler());
             HANDLERS.Add(new GreaterThanFilterHandler());
             HANDLERS.Add(new GreaterThanOrEqualFilterHandler());
             HANDLERS.Add(new LessThanFilterHandler());
             HANDLERS.Add(new LessThanOrEqualFilterHandler());
             HANDLERS.Add(new NotFilterHandler());
             HANDLERS.Add(new OrFilterHandler());
+            HANDLERS.Add(new PresenceFilterHandler());
             HANDLERS.Add(new StartsWithFilterHandler());
             HANDLERS.Add(new ContainsAllValuesFilterHandler());
         }
@@ -2737,6 +2749,35 @@ namespace Org.IdentityConnectors.Framework.Impl.Serializer
             }
         }
 
+        private class ExtendedMatchFilterHandler
+            : AbstractObjectSerializationHandler
+        {
+
+            public ExtendedMatchFilterHandler()
+                : base(typeof(ExtendedMatchFilter), "ExtendedMatchFilter")
+            {
+            }
+
+
+            public override sealed Object Deserialize(ObjectDecoder decoder)
+            {
+                String op = decoder.ReadStringField("operator", null);
+                ConnectorAttribute attribute = (ConnectorAttribute)decoder.ReadObjectField("attribute", null, null);
+                return new ExtendedMatchFilter(op, attribute);
+
+            }
+
+            public override sealed void Serialize(Object obj, ObjectEncoder encoder)
+            {
+                ExtendedMatchFilter val = (ExtendedMatchFilter)obj;
+                encoder.WriteStringField("operator", val.Operator);
+                encoder.WriteObjectField("attribute", val.GetAttribute(), false);
+
+
+            }
+
+        }
+
         private class GreaterThanFilterHandler : AttributeFilterHandler<GreaterThanFilter>
         {
             public GreaterThanFilterHandler()
@@ -2816,6 +2857,29 @@ namespace Org.IdentityConnectors.Framework.Impl.Serializer
             {
                 return new OrFilter(left, right);
             }
+        }
+        private class PresenceFilterHandler
+    : AbstractObjectSerializationHandler
+        {
+
+            public PresenceFilterHandler()
+                : base(typeof(PresenceFilter), "PresenceFilter")
+            {
+            }
+
+
+            public override sealed Object Deserialize(ObjectDecoder decoder)
+            {
+                String name = decoder.ReadStringField("name", null);
+                return new PresenceFilter(name);
+            }
+
+            public override sealed void Serialize(Object obj, ObjectEncoder encoder)
+            {
+                PresenceFilter val = (PresenceFilter)obj;
+                encoder.WriteStringField("name", val.Name);
+            }
+
         }
         private class StartsWithFilterHandler : AttributeFilterHandler<StartsWithFilter>
         {

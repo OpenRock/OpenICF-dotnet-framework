@@ -119,7 +119,6 @@
   </resheader>
   <data name="connectors.dtd" xml:space="preserve">
     <value>&lt;?xml version='1.0' encoding='UTF-8'?&gt;
-
 &lt;!--=======================================================--&gt;
 &lt;!--=                                                     =--&gt;
 &lt;!--= DTD for Connector Objects                           =--&gt;
@@ -149,9 +148,9 @@
   "&gt;
 
 &lt;!ENTITY % filterTypes
-  "AndFilter | ContainsFilter | EndsWithFilter | EqualsFilter |
+  "AndFilter | ContainsFilter | EndsWithFilter | EqualsFilter | ExtendedMatchFilter |
   GreaterThanFilter | GreaterThanOrEqualFilter | LessThanFilter |
-  LessThanOrEqualFilter | NotFilter | OrFilter | StartsWithFilter |
+  LessThanOrEqualFilter | NotFilter | OrFilter | PresenceFilter | StartsWithFilter |
   ContainsAllValuesFilter
   "&gt;
 
@@ -172,7 +171,7 @@ ObjectPoolConfiguration | ResultsHandlerConfiguration | ConfigurationProperty | 
 APIConfiguration | ConnectorMessages | ConnectorKey | ConnectorInfo |
 UpdateApiOpType | AttributeInfo | ConnectorObject | ObjectClass |
 ObjectClassInfo | Schema | Script | ScriptContext | OperationOptions |
-OperationOptionInfo | SyncDeltaType | SyncToken | SyncDelta | QualifiedUid
+OperationOptionInfo | SearchResult | SyncDeltaType | SyncToken | SyncDelta | QualifiedUid
 "&gt;
 
 
@@ -486,6 +485,16 @@ OperationOptionInfo | SyncDeltaType | SyncToken | SyncDelta | QualifiedUid
 
 &lt;!ELEMENT QualifiedUid (ObjectClass,Uid)&gt;
 
+&lt;!ELEMENT CountPolicy EMPTY&gt;
+&lt;!ATTLIST CountPolicy
+   value ( NONE | ESTIMATE | EXACT ) #REQUIRED
+&gt;
+&lt;!ELEMENT SearchResult (CountPolicy?)&gt;
+&lt;!ATTLIST SearchResult
+   pagedResultsCookie CDATA #REQUIRED
+   remainingPagedResults CDATA #REQUIRED
+   totalPagedResults CDATA #REQUIRED
+&gt;
 
 &lt;!--=======================================================--&gt;
 &lt;!--=                                                     =--&gt;
@@ -499,12 +508,20 @@ OperationOptionInfo | SyncDeltaType | SyncToken | SyncDelta | QualifiedUid
 &lt;!ELEMENT ContainsFilter (attribute)&gt;
 &lt;!ELEMENT EndsWithFilter (attribute)&gt;
 &lt;!ELEMENT EqualsFilter (attribute)&gt;
+&lt;!ELEMENT ExtendedMatchFilter (attribute)&gt;
+&lt;!ATTLIST ExtendedMatchFilter
+   operator CDATA #IMPLIED
+&gt;
 &lt;!ELEMENT GreaterThanFilter (attribute)&gt;
 &lt;!ELEMENT GreaterThanOrEqualFilter (attribute)&gt;
 &lt;!ELEMENT LessThanFilter (attribute)&gt;
 &lt;!ELEMENT LessThanOrEqualFilter (attribute)&gt;
 &lt;!ELEMENT NotFilter (%filterTypes;)&gt;
 &lt;!ELEMENT OrFilter ((%filterTypes;),(%filterTypes;))&gt;
+&lt;!ELEMENT PresenceFilter (#PCDATA)&gt;
+&lt;!ATTLIST PresenceFilter
+   name CDATA #IMPLIED
+&gt;
 &lt;!ELEMENT StartsWithFilter (attribute)&gt;
 &lt;!ELEMENT ContainsAllValuesFilter (attribute)&gt;
 

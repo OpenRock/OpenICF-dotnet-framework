@@ -174,26 +174,26 @@ namespace org.identityconnectors.testconnector
         {
             if (v1 is string && v2 is string)
             {
-                string s1 = (string) v1;
-                string s2 = (string) v2;
+                string s1 = (string)v1;
+                string s2 = (string)v2;
                 return StringComparer.OrdinalIgnoreCase.Compare(s1, s2);
             }
             else if (v1 is double && v2 is double)
             {
-                double n1 = (double) v1;
-                double n2 = (double) v2;
+                double n1 = (double)v1;
+                double n2 = (double)v2;
                 return n1.CompareTo(n2);
             }
             else if (v1 is int && v2 is int)
             {
-                int n1 = (int) v1;
-                int n2 = (int) v2;
+                int n1 = (int)v1;
+                int n2 = (int)v2;
                 return n1.CompareTo(n2);
             }
             else if (v1 is bool && v2 is bool)
             {
-                bool b1 = (bool) v1;
-                bool b2 = (bool) v2;
+                bool b1 = (bool)v1;
+                bool b2 = (bool)v2;
                 return b1.CompareTo(b2);
             }
             else
@@ -206,7 +206,7 @@ namespace org.identityconnectors.testconnector
 
         public void Init(Configuration cfg)
         {
-            _config = (TstStatefulConnectorConfig) cfg;
+            _config = (TstStatefulConnectorConfig)cfg;
             Guid g = _config.Guid;
         }
 
@@ -231,7 +231,7 @@ namespace org.identityconnectors.testconnector
         public ICF.ISubscription Subscribe(ICF.ObjectClass objectClass, Filter eventFilter,
             IObserver<ICF.ConnectorObject> handler, ICF.OperationOptions operationOptions)
         {
-            ICF.ConnectorObjectBuilder builder = new ICF.ConnectorObjectBuilder {ObjectClass = objectClass};
+            ICF.ConnectorObjectBuilder builder = new ICF.ConnectorObjectBuilder { ObjectClass = objectClass };
 
             Object op = CollectionUtil.GetValue(operationOptions.Options, "eventCount", null);
             int? eventCount = op as int? ?? 10;
@@ -297,7 +297,7 @@ namespace org.identityconnectors.testconnector
         public ICF.ISubscription Subscribe(ICF.ObjectClass objectClass, ICF.SyncToken token,
             IObserver<ICF.SyncDelta> handler, ICF.OperationOptions operationOptions)
         {
-            var coBuilder = new ICF.ConnectorObjectBuilder() {ObjectClass = objectClass};
+            var coBuilder = new ICF.ConnectorObjectBuilder() { ObjectClass = objectClass };
             coBuilder.SetUid("0");
             coBuilder.SetName("SYNC_EVENT");
 
@@ -373,7 +373,7 @@ namespace org.identityconnectors.testconnector
                     object value = ICF.ConnectorAttributeUtil.GetSingleValue(accessor.Find("emails"));
                     if (value is IDictionary)
                     {
-                        return new ICF.Uid((string) ((IDictionary) value)["email"]);
+                        return new ICF.Uid((string)((IDictionary)value)["email"]);
                     }
                     else
                     {
@@ -499,7 +499,7 @@ namespace org.identityconnectors.testconnector
             ICF.SortKey[] sortKeys = options.SortKeys;
             if (null == sortKeys)
             {
-                sortKeys = new ICF.SortKey[] {new ICF.SortKey(ICF.Name.NAME, true)};
+                sortKeys = new ICF.SortKey[] { new ICF.SortKey(ICF.Name.NAME, true) };
             }
 
             // Rebuild the full result set.
@@ -541,7 +541,7 @@ namespace org.identityconnectors.testconnector
                 string pagedResultsCookie = options.PagedResultsCookie;
                 string currentPagedResultsCookie = options.PagedResultsCookie;
                 int? pagedResultsOffset = null != options.PagedResultsOffset
-                    ? Math.Max(0, (int) options.PagedResultsOffset)
+                    ? Math.Max(0, (int)options.PagedResultsOffset)
                     : 0;
                 int? pageSize = options.PageSize;
                 int index = 0;
@@ -584,8 +584,8 @@ namespace org.identityconnectors.testconnector
 
                 if (handler is SearchResultsHandler)
                 {
-                    ((SearchResultsHandler) handler).HandleResult(new ICF.SearchResult(currentPagedResultsCookie,
-                        resultSet.Count - index));
+                    ((SearchResultsHandler)handler).HandleResult(new ICF.SearchResult(currentPagedResultsCookie, ICF.SearchResult.CountPolicy.EXACT,
+                        resultSet.Count, resultSet.Count - index));
                 }
             }
             else
@@ -600,7 +600,7 @@ namespace org.identityconnectors.testconnector
                 }
                 if (handler is SearchResultsHandler)
                 {
-                    ((SearchResultsHandler) handler).HandleResult(new ICF.SearchResult());
+                    ((SearchResultsHandler)handler).HandleResult(new ICF.SearchResult());
                 }
             }
         }
@@ -614,7 +614,7 @@ namespace org.identityconnectors.testconnector
             }
             if (_config.IsTestObjectClass(objectClass))
             {
-                foreach (ICF.SyncDelta delta in _config.Sync(objectClass, (int?) token.Value))
+                foreach (ICF.SyncDelta delta in _config.Sync(objectClass, (int?)token.Value))
                 {
                     if (!handler.Handle(delta))
                     {
@@ -623,14 +623,14 @@ namespace org.identityconnectors.testconnector
                 }
                 if (handler is SyncTokenResultsHandler)
                 {
-                    ((SyncTokenResultsHandler) handler).HandleResult(new ICF.SyncToken(_config.LatestSyncToken));
+                    ((SyncTokenResultsHandler)handler).HandleResult(new ICF.SyncToken(_config.LatestSyncToken));
                 }
             }
             else
             {
                 if (handler is SyncTokenResultsHandler)
                 {
-                    ((SyncTokenResultsHandler) handler).HandleResult(GetLatestSyncToken(objectClass));
+                    ((SyncTokenResultsHandler)handler).HandleResult(GetLatestSyncToken(objectClass));
                 }
             }
         }
@@ -692,7 +692,7 @@ namespace org.identityconnectors.testconnector
                 IDictionary<string, object> mapAttribute = new Dictionary<string, object>();
                 mapAttribute["email"] = "foo@example.com";
                 mapAttribute["primary"] = true;
-                mapAttribute["usage"] = new List<String>() {"home", "work"};
+                mapAttribute["usage"] = new List<String>() { "home", "work" };
                 builder.AddAttribute("emails", mapAttribute);
                 ICF.ConnectorObject co = builder.Build();
                 collection[co.Name.GetNameValue()] = co;
@@ -707,8 +707,8 @@ namespace org.identityconnectors.testconnector
 
     [ConnectorClass("TestConnector",
         "TestConnector.category",
-        typeof (TstConnectorConfig),
-        MessageCatalogPaths = new String[] {"TestBundleV1.Messages"}
+        typeof(TstConnectorConfig),
+        MessageCatalogPaths = new String[] { "TestBundleV1.Messages" }
         )]
     public class TstConnector : CreateOp, PoolableConnector, SchemaOp, SearchOp<String>, SyncOp
     {
@@ -719,10 +719,10 @@ namespace org.identityconnectors.testconnector
         public ICF.Uid Create(ICF.ObjectClass oclass, ICollection<ICF.ConnectorAttribute> attrs,
             ICF.OperationOptions options)
         {
-            int? delay = (int?) CollectionUtil.GetValue(options.Options, "delay", null);
+            int? delay = (int?)CollectionUtil.GetValue(options.Options, "delay", null);
             if (delay != null)
             {
-                Thread.Sleep((int) delay);
+                Thread.Sleep((int)delay);
             }
 
             if (options.Options.ContainsKey("testPooling"))
@@ -738,7 +738,7 @@ namespace org.identityconnectors.testconnector
 
         public void Init(Configuration cfg)
         {
-            _config = (TstConnectorConfig) cfg;
+            _config = (TstConnectorConfig)cfg;
             if (_config.resetConnectionCount)
             {
                 _connectionCount = 0;
@@ -796,10 +796,10 @@ namespace org.identityconnectors.testconnector
             int remaining = _config.numResults;
             for (int i = 0; i < _config.numResults; i++)
             {
-                int? delay = (int?) CollectionUtil.GetValue(options.Options, "delay", null);
+                int? delay = (int?)CollectionUtil.GetValue(options.Options, "delay", null);
                 if (delay != null)
                 {
-                    Thread.Sleep((int) delay);
+                    Thread.Sleep((int)delay);
                 }
                 ICF.ConnectorObjectBuilder builder =
                     new ICF.ConnectorObjectBuilder();
@@ -823,7 +823,7 @@ namespace org.identityconnectors.testconnector
 
             if (handler is SearchResultsHandler)
             {
-                ((SearchResultsHandler) handler).HandleResult(new ICF.SearchResult("", remaining));
+                ((SearchResultsHandler)handler).HandleResult(new ICF.SearchResult("", remaining));
             }
         }
 
@@ -857,7 +857,7 @@ namespace org.identityconnectors.testconnector
             }
             if (handler is SyncTokenResultsHandler)
             {
-                ((SyncTokenResultsHandler) handler).HandleResult(new ICF.SyncToken(remaining));
+                ((SyncTokenResultsHandler)handler).HandleResult(new ICF.SyncToken(remaining));
             }
         }
 
@@ -876,7 +876,7 @@ namespace org.identityconnectors.testconnector
                 for (int j = 0; j < 200; j++)
                 {
                     classBuilder.AddAttributeInfo(ICF.ConnectorAttributeInfoBuilder.Build("attributename" + j,
-                        typeof (String)));
+                        typeof(String)));
                 }
                 builder.DefineObjectClass(classBuilder.Build());
             }
@@ -893,7 +893,7 @@ namespace org.identityconnectors.testconnector
         /// <summary>
         ///     keep lower case for consistent unit tests
         /// </summary>
-        [ConfigurationProperty(OperationTypes = new Type[] {typeof (SyncOp)})]
+        [ConfigurationProperty(OperationTypes = new Type[] { typeof(SyncOp) })]
         public string tstField { get; set; }
 
         /// <summary>
@@ -933,8 +933,8 @@ namespace org.identityconnectors.testconnector
 
     [ConnectorClass("TestStatefulConnector",
         "TestStatefulConnector.category",
-        typeof (TstStatefulConnectorConfig),
-        MessageCatalogPaths = new String[] {"TestBundleV1.Messages"}
+        typeof(TstStatefulConnectorConfig),
+        MessageCatalogPaths = new String[] { "TestBundleV1.Messages" }
         )]
     public class TstStatefulConnector : TstAbstractConnector, Connector
     {
@@ -980,7 +980,7 @@ namespace org.identityconnectors.testconnector
                     {
                         guid = Guid.NewGuid();
                     }
-                    return (Guid) guid;
+                    return (Guid)guid;
                 }
             }
         }
@@ -1141,7 +1141,7 @@ namespace org.identityconnectors.testconnector
                 var d = _uniqueNameIndex.GetOrAdd(name.GetNameValue(), uid.GetUidValue());
                 if (d == uid.GetUidValue())
                 {
-                    var builder = new ICF.ConnectorObjectBuilder {ObjectClass = _objectClass};
+                    var builder = new ICF.ConnectorObjectBuilder { ObjectClass = _objectClass };
                     builder.AddAttributes(createAttributes).SetUid(uid);
 
                     ObjectCache.TryAdd(uid.GetUidValue(),
@@ -1260,7 +1260,7 @@ namespace org.identityconnectors.testconnector
 
             public virtual ICF.Uid Update(ICollection<ICF.ConnectorAttribute> updateAttributes)
             {
-                var builder = new ICF.ConnectorObjectBuilder {ObjectClass = ConnectorObject.ObjectClass};
+                var builder = new ICF.ConnectorObjectBuilder { ObjectClass = ConnectorObject.ObjectClass };
                 builder.AddAttributes(updateAttributes).SetUid(_getNextUid(ConnectorObject.Uid.GetUidValue()));
                 ConnectorObject = builder.Build();
                 DeltaType = ICF.SyncDeltaType.UPDATE;
@@ -1275,8 +1275,8 @@ namespace org.identityconnectors.testconnector
 
     [ConnectorClass("TestStatefulPoolableConnector",
         "TestStatefulPoolableConnector.category",
-        typeof (TstStatefulConnectorConfig),
-        MessageCatalogPaths = new String[] {"TestBundleV1.Messages"}
+        typeof(TstStatefulConnectorConfig),
+        MessageCatalogPaths = new String[] { "TestBundleV1.Messages" }
         )]
     public class TstStatefulPoolableConnector : TstAbstractConnector, PoolableConnector
     {

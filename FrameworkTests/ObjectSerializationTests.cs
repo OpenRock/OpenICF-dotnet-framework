@@ -19,7 +19,7 @@
  * enclosed by brackets [] replaced by your own identifying information: 
  * "Portions Copyrighted [year] [name of copyright owner]"
  * ====================
- * Portions Copyrighted 2012-2014 ForgeRock AS.
+ * Portions Copyrighted 2012-2015 ForgeRock AS.
  */
 using System;
 using System.IO;
@@ -815,6 +815,25 @@ namespace FrameworkTests
             Assert.AreEqual(v1.GetAttribute(), v2.GetAttribute());
         }
 
+
+        [Test]
+        public void TestPresenceFilter()
+        {
+            PresenceFilter v1 = new PresenceFilter("foo");
+            PresenceFilter v2 = (PresenceFilter)CloneObject(v1);
+            Assert.AreEqual(v1.Name, v2.Name);
+        }
+
+        [Test]
+        public void TestExtendedMatchFilter()
+        {
+            ExtendedMatchFilter v1 = new ExtendedMatchFilter("bar", ConnectorAttributeBuilder.Build("foo", "a", "b"));
+            ExtendedMatchFilter v2 = (ExtendedMatchFilter)CloneObject(v1);
+            Assert.AreEqual(v1.GetAttribute(), v2.GetAttribute());
+            Assert.AreEqual(v1.Operator, v2.Operator);
+        }
+
+
         [Test]
         public void TestExceptions()
         {
@@ -929,9 +948,9 @@ namespace FrameworkTests
         public void TestHelloResponse()
         {
             Exception ex = new Exception("foo");
-            IDictionary<string,object> serverInfo = new Dictionary<string, object>(1);
+            IDictionary<string, object> serverInfo = new Dictionary<string, object>(1);
             serverInfo.Add(HelloResponse.SERVER_START_TIME, DateTimeUtil.GetCurrentUtcTimeMillis());
- 	 	 	ConnectorKey key = new ConnectorKey("my bundle", "my version", "my connector");
+            ConnectorKey key = new ConnectorKey("my bundle", "my version", "my connector");
             RemoteConnectorInfoImpl info = new RemoteConnectorInfoImpl();
             info.Messages = (new ConnectorMessagesImpl());
             info.ConnectorKey = (key);
@@ -1044,6 +1063,18 @@ namespace FrameworkTests
             Assert.AreEqual("bar", v2.Options["foo"]);
             Assert.AreEqual("bar2", v2.Options["foo2"]);
         }
+
+        [Test]
+        public void TestSearchResult()
+        {
+            SearchResult v1 = new SearchResult("FE00", SearchResult.CountPolicy.ESTIMATE, 100, 10);
+            SearchResult v2 = (SearchResult)CloneObject(v1);
+            Assert.AreEqual(v1.PagedResultsCookie, v2.PagedResultsCookie);
+            Assert.AreEqual(v1.TotalPagedResultsPolicy, v2.TotalPagedResultsPolicy);
+            Assert.AreEqual(v1.TotalPagedResults, v2.TotalPagedResults);
+            Assert.AreEqual(v1.RemainingPagedResults, v2.RemainingPagedResults);
+        }
+
 
         [Test]
         public void TestScript()

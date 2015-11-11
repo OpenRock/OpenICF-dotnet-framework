@@ -729,6 +729,8 @@ namespace FrameworkTests
                 iteration++;
                 Assert.IsNotNull(searchResult);
                 Assert.AreEqual(searchResult.RemainingPagedResults, 100 - (iteration * 10));
+                Assert.AreEqual(searchResult.TotalPagedResultsPolicy, SearchResult.CountPolicy.EXACT);
+                Assert.AreEqual(searchResult.TotalPagedResults, 100);
 
             } while (searchResult.PagedResultsCookie != null);
 

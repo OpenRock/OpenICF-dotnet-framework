@@ -2994,6 +2994,12 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
         public static readonly string OP_PAGED_RESULTS_COOKIE = "PAGED_RESULTS_COOKIE";
 
         /// <summary>
+        /// An option to use with <seealso cref="SearchApiOp"/> that specifies the policy used for calculating
+        /// the total number of paged results.
+        /// </summary>
+        public const string OP_TOTAL_PAGED_RESULTS_POLICY = "TOTAL_PAGED_RESULTS_POLICY";
+
+        /// <summary>
         /// An option to use with <seealso cref="SearchApiOp"/> that specifies the index within
         /// the result set of the first result which should be returned.
         /// </summary>
@@ -3134,6 +3140,22 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
             {
                 return (string)CollectionUtil.GetValue(
                         _operationOptions, OP_PAGED_RESULTS_COOKIE, null);
+            }
+        }
+
+        /// <summary>
+        /// Returns the <seealso cref="SearchResult.CountPolicy"/> used to calculate
+        /// <seealso cref="SearchResult#getTotalPagedResults()"/>.
+        /// </summary>
+        /// <returns> The count policy. </returns>
+        /// <seealso cref= SearchResult#getTotalPagedResults()</seealso>
+        /// <remarks>Since 1.5</remarks>
+        public SearchResult.CountPolicy TotalPagedResultsPolicy
+        {
+            get
+            {
+                return (SearchResult.CountPolicy)CollectionUtil.GetValue(
+                        _operationOptions, OP_TOTAL_PAGED_RESULTS_POLICY, SearchResult.CountPolicy.NONE);
             }
         }
 
@@ -3369,6 +3391,22 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
             {
                 Assertions.NullCheck(value, "pagedResultsCookie");
                 _options[OperationOptions.OP_PAGED_RESULTS_COOKIE] = value;
+            }
+        }
+
+        /// <summary>
+        /// Sets the policy for calculating the total number of paged results. If no
+        /// count policy is supplied or paged results are not requested a default of
+        /// <seealso cref="SearchResult.CountPolicy#NONE"/> will be used. This will result in no count being
+        /// performed and no overhead incurred.
+        /// </summary>
+        /// <remarks>Since 1.5</remarks>
+        public SearchResult.CountPolicy TotalPagedResultsPolicy
+        {
+            set
+            {
+                Assertions.NullCheck(value, "totalPagedResultsPolicy");
+                _options[OperationOptions.OP_TOTAL_PAGED_RESULTS_POLICY] = value;
             }
         }
 
@@ -4834,7 +4872,40 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
     public sealed class SearchResult
     {
 
+        /// <summary>
+        /// An enum of count policy types.
+        /// </summary>
+        /// <seealso cref= OperationOptionsBuilder#setTotalPagedResultsPolicy(CountPolicy) </seealso>
+        /// <seealso cref= SearchResult#getTotalPagedResultsPolicy() </seealso>
+        public enum CountPolicy
+        {
+            /// <summary>
+            /// There should be no count returned. No overhead should be incurred.
+            /// </summary>
+            NONE,
+
+            /// <summary>
+            /// Estimated count may be used. If no estimation is available it is up
+            /// to the implementor whether to return an <seealso cref="#EXACT"/> count or
+            /// <seealso cref="#NONE"/>. It should be known to the client which was used as in
+            /// <seealso cref="SearchResult#getTotalPagedResultsPolicy()"/>
+            /// </summary>
+            ESTIMATE,
+
+            /// <summary>
+            /// Exact count is required.
+            /// </summary>
+            EXACT
+        }
+
+        /// <summary>
+        /// The value provided when no count is known or can reasonably be supplied.
+        /// </summary>
+        public const int NoCount = -1;
+
         private readonly string _pagedResultsCookie;
+        private readonly CountPolicy _totalPagedResultsPolicy;
+        private readonly int _totalPagedResults;
         private readonly int _remainingPagedResults;
 
         /// <summary>
@@ -4842,7 +4913,7 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
         /// no estimate of the total number of remaining results.
         /// </summary>
         public SearchResult()
-            : this(null, -1)
+            : this(null, CountPolicy.NONE, NoCount, NoCount)
         {
         }
 
@@ -4860,9 +4931,41 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
         ///            {@code -1} if paged results were not requested, or if the
         ///            total number of remaining results is unknown. </param>
         public SearchResult(string pagedResultsCookie, int remainingPagedResults)
+            : this(pagedResultsCookie, CountPolicy.NONE, NoCount, remainingPagedResults)
         {
-            this._pagedResultsCookie = pagedResultsCookie;
-            this._remainingPagedResults = remainingPagedResults;
+        }
+
+        /// <summary>
+        /// Creates a new query response with the provided paged results cookie and a
+        /// count of the total number of resources according to
+        /// <seealso cref="#totalPagedResultsPolicy"/>.
+        /// </summary>
+        /// <param name="pagedResultsCookie">
+        ///            The opaque cookie which should be used with the next paged
+        ///            results query request, or {@code null} if paged results were
+        ///            not requested, or if there are not more pages to be returned. </param>
+        /// <param name="totalPagedResultsPolicy">
+        ///            The policy that was used to calculate
+        ///            <seealso cref="#totalPagedResults"/>. If none is specified ({@code null}
+        ///            ), then <seealso cref="CountPolicy#NONE"/> is assumed. </param>
+        /// <param name="totalPagedResults">
+        ///            The total number of paged results requested in adherence to
+        ///            the <seealso cref="OperationOptions#getTotalPagedResultsPolicy()"/> in
+        ///            the request, or <seealso cref="#NO_COUNT"/> if paged results were not
+        ///            requested, the count policy is {@code NONE}, or if the total
+        ///            number of results is unknown. </param>
+        /// <param name="remainingPagedResults">
+        ///            An estimate of the total number of remaining results to be
+        ///            returned in subsequent paged results query requests, or
+        ///            {@code -1} if paged results were not requested, or if the
+        ///            total number of remaining results is unknown.</param>
+        /// <remarks>Since 1.5</remarks>
+        public SearchResult(string pagedResultsCookie, CountPolicy totalPagedResultsPolicy, int totalPagedResults, int remainingPagedResults)
+        {
+            _pagedResultsCookie = pagedResultsCookie;
+            _totalPagedResultsPolicy = totalPagedResultsPolicy;
+            _totalPagedResults = totalPagedResults;
+            _remainingPagedResults = remainingPagedResults;
         }
 
         /// <summary>
@@ -4877,6 +4980,39 @@ namespace Org.IdentityConnectors.Framework.Common.Objects
             get
             {
                 return _pagedResultsCookie;
+            }
+        }
+
+        /// <summary>
+        /// Returns the policy that was used to calculate the
+        /// {@literal totalPagedResults}.
+        /// </summary>
+        /// <returns> The count policy. </returns></seealso>
+        /// <remarks>Since 1.5</remarks>
+        public CountPolicy TotalPagedResultsPolicy
+        {
+            get
+            {
+                return _totalPagedResultsPolicy;
+            }
+        }
+
+        /// <summary>
+        /// Returns the total number of paged results in adherence with the
+        /// <seealso cref="OperationOptions#getTotalPagedResultsPolicy()"/> in the request or
+        /// <seealso cref="#NO_COUNT"/> if paged results were not requested, the count policy
+        /// is {@code NONE}, or the total number of paged results is unknown.
+        /// </summary>
+        /// <returns> A count of the total number of paged results to be returned in
+        ///         subsequent paged results query requests, or <seealso cref="#NO_COUNT"/> if
+        ///         paged results were not requested, or if the total number of paged
+        ///         results is unknown. </returns>
+        /// <remarks>Since 1.5</remarks>
+        public int TotalPagedResults
+        {
+            get
+            {
+                return _totalPagedResults;
             }
         }
 
