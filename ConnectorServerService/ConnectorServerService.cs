@@ -262,8 +262,7 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
                                     }
                                     else
                                     {
-                                        Trace.TraceWarning("Incorrect password - username: {0} password: {1}", name,
-                                            password);
+                                        Trace.TraceWarning("Incorrect password - username: {0}", name);
                                         response.Status = HttpStatusCode.Forbidden;
                                     }
                                 }
