@@ -229,6 +229,7 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
             var options = new WebSocketListenerOptions()
             {
                 NegotiationQueueCapacity = 128,
+                SendBufferSize = 256000,
                 ParallelNegotiations = 16,
                 PingTimeout = Timeout.InfiniteTimeSpan,
                 SubProtocols = new[] {"v1.openicf.forgerock.org"},
@@ -390,7 +391,6 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
             VtortWebsocket soWebsocket = new VtortWebsocket(websocket, connectionPrincipal);
             try
             {
-                Trace.TraceInformation("Server onConnect()");
                 connectionPrincipal.OperationMessageListener.OnConnect(soWebsocket);
 
                 while (websocket.IsConnected)

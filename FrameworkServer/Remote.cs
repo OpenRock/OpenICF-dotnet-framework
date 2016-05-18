@@ -1232,6 +1232,11 @@ public class AsyncRemoteLegacyConnectorInfoManager : ManagedAsyncConnectorInfoMa
 
         public virtual void OnMessage(WebSocketConnectionHolder socket, byte[] bytes)
         {
+            Task.Run(() => ProcessMessage(socket, bytes)).ConfigureAwait(false);
+        }
+
+        public virtual void ProcessMessage(WebSocketConnectionHolder socket, byte[] bytes)
+        {
 #if DEBUG
             Debug.WriteLine("{0} onMessage(socket[{1}], {2}:bytes)", LoggerName(), socket.Id, bytes.Length);
 #else
