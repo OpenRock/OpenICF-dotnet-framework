@@ -17,7 +17,7 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
 
         private static void Usage()
         {
-            Console.WriteLine("Usage: ConnectorServer.exe <command> [option], where command is one of the following: ");
+            Console.WriteLine("Usage: ConnectorServerService.exe <command> [option], where command is one of the following: ");
             Console.WriteLine("       /install [/serviceName <serviceName>] - Installs the service.");
             Console.WriteLine("       /uninstall [/serviceName <serviceName>] - Uninstalls the service.");
             Console.WriteLine("       /run - Runs the service from the console.");
