@@ -33,7 +33,7 @@
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' ">$(MSBuildExtensionsPath)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <Cultures>en-US</Cultures>
     <SupressIces>ICE45</SupressIces>
-    <OpenICFVersion>1.5.0.0-SNAPSHOT</OpenICFVersion>
+    <OpenICFVersion>1.5.1.0-SNAPSHOT</OpenICFVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <ErrorReport>prompt</ErrorReport>
@@ -56,7 +56,7 @@
     <DebugSymbols>true</DebugSymbols>
     <Optimize>True</Optimize>
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
-    <OpenICFVersion>1.5.0.0</OpenICFVersion>
+    <OpenICFVersion>1.5.1.0</OpenICFVersion>
   </PropertyGroup>
   <Import Project="$(WixTargetsPath)" />
   <Import Project="$(MSBuildExtensionsPath)\MSBuildCommunityTasks\MSBuild.Community.Tasks.Targets" />

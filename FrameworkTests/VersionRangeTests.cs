@@ -157,10 +157,10 @@ namespace FrameworkTests
 
             ConnectorKeyRange r45 =
                 ConnectorKeyRange.NewBuilder().SetBundleName("B").SetConnectorName("C")
-                    .SetBundleVersion("[1.4.0.0,1.5.0.0)").Build();
+                    .SetBundleVersion("[1.4.0.0,1.5.1.0)").Build();
             Assert.IsTrue(r45.IsInRange(new ConnectorKey("B", "1.4.0.0", "C")));
 
-            Assert.IsFalse(r45.IsInRange(new ConnectorKey("B", "1.5.0.0", "C")));
+            Assert.IsFalse(r45.IsInRange(new ConnectorKey("B", "1.5.1.0", "C")));
         }
     }
 }
