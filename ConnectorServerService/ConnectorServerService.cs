@@ -136,7 +136,7 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
                 String disableWcf = settings.Get("disableWcf");
                 OperatingSystem os = Environment.OSVersion;
                 Uri[] endpointUri = ExtractEndPoint();
-                if (endpointUri == null)
+                if (endpointUri == null || endpointUri.Length == 0)
                 {
                     throw new Org.IdentityConnectors.Framework.Common.Exceptions.ConfigurationException(
                         "Missing required baseAddress");
@@ -151,8 +151,7 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
                     Trace.TraceInformation("Started WCF connector server on port: {0}", endpointUri[0].Port);
                 }
                 else
-                {
-                    
+                {   
                     VtortConnectorServiceHost host = new VtortConnectorServiceHost(validator, endpointUri);
                     host.Open();
 
