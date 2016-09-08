@@ -135,6 +135,7 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
 
                 String disableWcf = settings.Get("disableWcf");
                 OperatingSystem os = Environment.OSVersion;
+                Uri[] endpointUri = ExtractEndPoint();
                 if (disableWcf == null && (os.Platform == PlatformID.Win32NT) &&
                     ((os.Version.Major > 6) || ((os.Version.Major == 6) && (os.Version.Minor >= 2))))
                 {
@@ -142,11 +143,10 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
                     host.Open();
 
                     _closeAction = () => host.Close();
-                    Trace.TraceInformation("Started WCF connector server");
+                    Trace.TraceInformation("Started WCF connector server on port: {0}", endpointUri[0].Port);
                 }
                 else
                 {
-                    Uri[] endpointUri = ExtractEndPoint();
                     if (endpointUri == null)
                     {
                         throw new Org.IdentityConnectors.Framework.Common.Exceptions.ConfigurationException(
@@ -156,7 +156,7 @@ namespace Org.ForgeRock.OpenICF.Framework.ConnectorServerService
                     host.Open();
 
                     _closeAction = () => host.Close();
-                    Trace.TraceInformation("Started WebSocketListener connector server");
+                    Trace.TraceInformation("Started WebSocketListener connector server on port: {0}", endpointUri[0].Port);
                 }
             }
             catch (Exception e)
