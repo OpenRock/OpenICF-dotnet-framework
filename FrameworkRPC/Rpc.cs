@@ -611,7 +611,7 @@ namespace Org.ForgeRock.OpenICF.Common.RPC
                 }
                 else if (remoteRequest.Promise == null)
                 {
-                    Trace.TraceError("FATAL: Concurrency Problem! Prmoise can not be null if result is not null.");
+                    Trace.TraceError("Concurrency Problem! Promise can not be null if result is not null.");
                 }
             }
             return remoteRequest;
@@ -824,7 +824,7 @@ namespace Org.ForgeRock.OpenICF.Common.RPC
 
         public virtual Task<TV> Promise
         {
-            get { return _promise.Task; }
+            get { return _promise != null ? _promise.Task : default(Task<TV>); }
         }
 
         /// <summary>
